@@ -1,0 +1,42 @@
+#!/usr/bin/perl -w
+
+my @ascii_colors;
+$ascii_colors[30] = 'black';
+$ascii_colors[31] = 'red';
+$ascii_colors[32] = 'green';
+$ascii_colors[33] = 'yellow';
+$ascii_colors[34] = 'blue';
+$ascii_colors[35] = 'magenta';
+$ascii_colors[36] = 'cyan';
+$ascii_colors[37] = 'white';
+
+sub ascii2html()
+{
+    my $line;
+
+    print "<html>\n" .
+          " <head>\n" .
+          "  <title>file</title>\n" .
+          " </head>\n" .
+          " <body>\n";
+    while ($line = <>) {
+        chop($line);
+        $line =~ s/\x1b\[0m/<\/font>/g;
+        $line =~ s/\x1b\[([0-9]{1,3})m/<font color=$ascii_colors[$1]>/g;
+        print "$line<br>\n";
+    }
+    print " </body>\n" .
+          "</html>\n";
+}
+
+if (scalar(@ARGV) > 0) {
+    my $f;
+    foreach $f (@ARGV) {
+        open(STDIN, "$f") or die;
+        open(STDOUT, ">$f.html") or die;
+        ascii2html();
+    }
+}
+else {
+    ascii2html();
+}

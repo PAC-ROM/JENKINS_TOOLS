@@ -1,0 +1,188 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import getopt
+import re
+import datetime
+import time
+import subprocess
+import pipes
+import md5
+
+debug_level = 0
+foreground = False
+logfile = "%s/.bb-up" % (os.environ['HOME'])
+
+def daemonize():
+    pid = os.fork()
+    if pid > 0:
+        sys.exit(0)
+    #os.chdir('/')
+    os.setsid()
+    os.umask(0)
+    for fd in range(0, 1023):
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+    os.open('/dev/null', os.O_RDWR)
+    os.dup2(0, 1)
+    os.dup2(0, 2)
+    pid = os.fork()
+    if pid > 0:
+        sys.exit(0)
+
+def logx(level, msg):
+    nowstr = datetime.datetime.now().ctime()
+    if foreground:
+        print "%s: %s: %s" % (nowstr, level, msg)
+    else:
+        f = open(logfile, "a")
+        f.write("%s: %s: %s\n" % (nowstr, level, msg))
+        f.close()
+
+def logi(s):
+    logx('i', s)
+
+def loge(s):
+    logx('e', s)
+
+def md5_file(pathname):
+    hasher = md5.new()
+    f = open(pathname, "r")
+    buf = f.read(64*1024)
+    while len(buf) > 0:
+        hasher.update(buf)
+        buf = f.read(64*1024)
+    return hasher.hexdigest()
+
+def urlencode(s):
+    s = s.replace(' ', '+')
+    # RFC 1738 reserved characters: ";", "/", "?", ":", "@", "=" and "&"
+    for c in (';', '/', '?', ':', '@', '=', '&'):
+        x = "%%%02X" % ord(c)
+        s = s.replace(c, x)
+    return s
+
+def make_query(m):
+    q = ''
+    for k, v in m.iteritems():
+        if len(q) > 0:
+            q += "&"
+        q += "%s=%s" % (k, urlencode(str(v)))
+    return q
+
+def put_file(rdir, path):
+    #argv = ['/usr/bin/ncftpput', '-m', 'pacman', rdir, path]
+    argv = ['/usr/bin/ncftpput', '-bb', '-f', '/home/build/pacman', rdir, path]
+    subprocess.call(argv)
+    processname = 'ncftpbatch'
+    tmp = os.popen("ps -Af").read()
+    batchid = tmp.count(processname)
+    if batchid == 0:
+        cmd = "ncftpbatch -d"
+        subprocess.call(cmd, shell=True)
+
+def put_file_delta(rdir, newpath, oldpath):
+    deltapath = newpath.replace('.zip', '.delta') # XXX
+
+    newfile = os.path.basename(newpath)
+    oldfile = os.path.basename(oldpath)
+    deltafile = os.path.basename(deltapath)
+
+    # Create delta file
+    # XXX
+    cmd = "rdiff signature \"%s\" | rdiff delta - \"%s\" \"%s\"" % (oldpath, newpath, deltapath)
+    subprocess.call(cmd, shell=True)
+
+    newmd5 = md5_file(newpath)
+    oldmd5 = md5_file(oldpath)
+    deltamd5 = md5_file(deltapath)
+
+    # Upload delta file
+    argv = ['/usr/bin/ncftpput', '-m', '-f', '/home/build/pacman', rdir, deltapath]
+    #argv = ['/usr/bin/ncftpput', '-bb', 'pacman', rdir, deltapath]
+    subprocess.call(argv)
+    #processname = 'ncftpbatch'
+    #tmp = os.popen("ps -Af").read()
+    #batchid = tmp.count(processname)
+    #if batchid == 0:
+        #cmd = "ncftpbatch -d"
+        #subprocess.call(cmd, shell=True)
+
+    # Construct remote file
+    rdir2=rdir.replace('public_html/','')
+    query = make_query( {
+        'action'    : 'mkdelta',
+        'basisfile' : "%s/%s" % (rdir2, oldfile),
+        'deltafile' : "%s/%s" % (rdir2, deltafile),
+        'outputfile': "%s/%s" % (rdir2, newfile),
+        'basismd5'  : oldmd5,
+        'deltamd5'  : deltamd5,
+        'outputmd5' : newmd5 } )
+    argv = ['/usr/bin/wget', '-q', '-O', '-',
+        '--post-data=%s' % (query),
+        'https://s.basketbuild.com/uploads/devs/pacman/mkdelta.php' ]
+    child = subprocess.Popen(argv, stdin=None, stdout=subprocess.PIPE, stderr=None)
+    out, err = child.communicate()
+    rc = False
+    if child.returncode == 0:
+        for line in out.split("\n"):
+            if line == 'result=ok':
+                rc = True
+
+    # XXX
+    cmd = "echo rm \"%s/%s\" | ncftp pacman" % (rdir, deltafile)
+    subprocess.call(cmd, shell=True)
+
+    return rc
+
+optargs, argv = getopt.getopt(sys.argv[1:], 'df', ['debug', 'foreground'])
+for k, v in optargs:
+    if k in ('-d', '--debug'):
+        debug_level += 1
+    if k in ('-f', '--foreground'):
+        foreground = True
+
+if len(argv) != 2:
+    print "Usage: bb-up remote-dir local-pathname"
+    sys.exit(1)
+
+remotedir = argv[0]
+newpath = argv[1]
+
+if not os.path.exists(newpath):
+    print "No such file %s" % (newpath)
+    sys.exit(1)
+
+if not foreground:
+    daemonize()
+
+logi("upload %s %s" % (remotedir, newpath))
+
+newfile = os.path.basename(newpath)
+
+m = re.search('\d{8}', newfile)
+if m is None:
+    logi("no date stamp found in file, fall back to normal upload")
+    put_file(remotedir, newpath)
+    sys.exit(0)
+
+newdatestr = m.group(0)
+newdate = datetime.date(int(newdatestr[0:4]), int(newdatestr[4:6]), int(newdatestr[6:8]))
+olddate = newdate - datetime.timedelta(days=1)
+olddatestr = "%04d%02d%02d" % (olddate.year, olddate.month, olddate.day)
+
+oldpath = newpath.replace(newdatestr, olddatestr)
+
+if not os.path.exists(oldpath):
+    logi("oldpath does not exist, fall back to normal upload")
+    put_file(remotedir, newpath)
+    sys.exit(0)
+
+logi("attempt to put file via delta")
+if not put_file_delta(remotedir, newpath, oldpath):
+    logi("put file via delta failed, fall back to normal upload")
+    put_file(remotedir, newpath)
+    sys.exit(0)

@@ -1,0 +1,312 @@
+#!/bin/bash
+
+PATH=$PATH:~/bin
+
+BUILD_TOP="$HOME/src/$Tree"
+
+PROD_OUT_DIR="$BUILD_TOP/out/target/product/$Device"
+
+# Min time ro re-run the git reset and repo sync
+# 43200 = 12 hrs
+MIN_PRE_TIME=43200
+# Keep out tree for ~12 hrs
+MAX_OUT_TIME=43200
+# Keep unused ccache dirs for no more than one week
+MAX_CCACHE_UNUSED=604800
+
+# Deal with timeouts
+export GIT_HTTP_LOW_SPEED_TIME=300
+export GIT_HTTP_LOW_SPEED_LIMIT=1024
+
+export OUT_TOP=$HOME/jenkins
+export OUT_BASE=$OUT_TOP/$Version
+export jenkins_pac_conf=$HOME/.jenkins/config
+
+mkdir -p "$OUT_BASE"
+
+date_no_time=`date -u +%Y%m%d`
+export BASE_NAME="pac_$Device-$Version-${date_no_time}"
+export OUT_MD5SUM=$OUT_BASE/$BASE_NAME.md5sum
+export logpath=$OUT_BASE/$BASE_NAME.log
+export outzip=$OUT_BASE/$BASE_NAME.zip
+
+REMOTE_DIR=$Device/$Version
+REMOTE_HOST="pacman"
+REMOTE_DOWNLOAD_HOST="pacman.basketbuild.com"
+
+# JAVA
+export PATH=/usr/bin:$PATH
+JAVA_HOME=/usr/lib/jvm/java-6-sun export JAVA_HOME=$JAVA_HOME
+
+# CCAHCE
+export USE_CCACHE=1
+
+cd "$BUILD_TOP"
+
+# Colors
+. ./vendor/pac/tools/colors
+
+echo "New Game"
+echo ""
+echo "Server Time $BUILD_ID"
+echo "Building $Device for $Tree"
+echo ""
+echo "Player $BUILD_NUMBER Start!"
+echo ""
+
+CheckReturn(){
+
+    if [ $@ -ne 0 ]; then
+		echo -e ${RED}"GAME OVER!"${txtrst}
+	    exit 1 
+    fi
+
+}
+
+get_elapsed(){
+    local t1="$1"
+    local t2="$2"
+    local d="$((t2-t1))"
+    local h=$((d/3600))
+    d="$((d-h*3600))"
+    local m="$((d/60))"
+    d="$((d-m*60))"
+    local s="$d"
+    printf "%02d:%02d:%02d" $h $m $s
+}
+
+
+update_ota()
+{
+    {
+    local device="$1"
+    local pathname="$2"
+    local filename
+    local md5
+    local dlurl
+    local otatype
+    local otaver
+    filename=$(basename $pathname)
+    md5=$(md5sum "$pathname" | cut -c-32)
+    dlurl="http://$REMOTE_DOWNLOAD_HOST/download.php?file=main/$device/$Type/$filename"
+    otatype=$Type
+    otaver=${filename%.*}
+    pac-push-ota "$otatype" "$device" "$otaver" "$md5" "$dlurl"
+	} &> /dev/null
+    echo "Sent OTA $device $filename MD5 $md5 OTA"
+}
+
+upload_file(){
+    local remote_host="$1"
+    local remote_dir="$2"
+    local local_pathname="$3"
+    local ftype="$4"
+
+    if [ "$ftype" = "zip" ];then
+        echo "bb up $remote_dir  $local_pathname"
+        bb-up "$remote_dir" "$local_pathname"
+    else
+        echo "ncftpput -bb -f ~/pacman $remote_dir $local_pathname" 
+	ncftpput -bb -f ~/pacman "$remote_dir" "$local_pathname"
+        batchid=$(pgrep ncftpbatch)
+        if [[ -z $batchid ]]; then
+            ncftpbatch -d
+        fi
+    fi
+}
+
+
+if [ -d "$BUILD_TOP/.repo" ]; then
+    echo "Sources Found"
+else 
+    echo "No Sources Configuring!"
+	mkdir -p "$BUILD_TOP"
+	cd "$BUILD_TOP"
+	repo init -u https://github.com/PAC-man/pacman -b $Tree
+    CheckReturn $? 
+	repo sync -j8
+    CheckReturn $? 
+fi
+
+# Read jenkins config
+if [ -f $jenkins_pac_conf ]; then
+    export CCACHE_ROOT=`grep "ccache_root" $jenkins_pac_conf | cut -d'=' -f2`
+	export CCACHE_BIG=`grep "ccache_big" $jenkins_pac_conf | cut -d'=' -f2`
+fi
+
+# Setup ccache
+CCACHE_BIN="prebuilts/misc/linux-x86/ccache/ccache"
+if [ -z "$CCACHE_ROOT" ]; then
+    export CCACHE_ROOT="$HOME"
+fi
+
+#create out dir
+mkdir -p $OUT_BASE
+
+#create ccache dir
+if [ -z "$CCACHE_BIG" ]; then
+	export CCACHE_DIR="$CCACHE_ROOT/.ccache-pac_$Device"
+	if [ ! -d "$CCACHE_DIR" -a -x "$CCACHE_BIN" ]; then
+		mkdir -p "$CCACHE_DIR"
+		$CCACHE_BIN -M 8G
+	fi
+	touch "$CCACHE_DIR/.lastused"
+else
+	mkdir -p $CCACHE_ROOT/.ccache-big-pac 
+fi
+
+exec &> >(tee -a $logpath)
+
+now=$(date "+%s")
+#edit 1
+needs_run=1
+if [ -f "$OUT_TOP/.pre-script" ]; then
+    t=$(stat -c "%Y" $OUT_TOP/.pre-script)
+    delta=$((now-t))
+    if [ "$delta" -lt "$MIN_PRE_TIME" ]; then
+        needs_run=0
+    fi
+fi
+
+# Nuke any local manifests, in case somebody has been playing with
+# local builds.
+
+if [ "$needs_run" -ne 0 ] || [ $Sync_Force -ne 0 ]; then
+    echo "Reseting all repositories..."
+    echo ""
+    if [ -d ".repo/local_manifests" ]; then
+        find ".repo/local_manifests" -type f ! -name "device.xml" -print0 | xargs -0 rm -f
+    fi
+    repo sync -j30 -c "vendor/pac"
+    CheckReturn $?
+    pac-add-devices
+    CheckReturn $?
+    repo forall -c "git reset --hard HEAD; git clean -q -f"
+    worked=$?
+    repo sync -j8 -c
+    CheckReturn $?
+
+    # work around for if a pacackage changes remotes the first git reset will fail so sync and try 
+    # again.
+    # may have problems if there is a change on the tree ( but there shouldn't be this is the slave 
+    # tree ) 
+    if [ $worked -ne 0 ]; then
+        repo forall -c "git reset --hard HEAD; git clean -q -f"
+	CheckReturn $?
+	repo sync -j8 -c
+ 	CheckReturn $?
+    fi
+
+    make clean
+    touch "$OUT_TOP/.pre-script"
+fi
+
+echo ""
+echo "Cleaning the ghosts of building past!"
+echo ""
+
+if [ -f "out/.stamp" ]; then
+    stamp=$(stat -c "%Y" "out/.stamp")
+    delta=$((now-stamp))
+    if [ "$delta" -lt "$MAX_OUT_TIME" ]; then
+	echo "Who ya gonna call?!"
+	rm -rf "out/*"
+	mkdir -p "out"
+	touch "out/.stamp"
+	echo "Ghosts Busters!"
+    fi
+else
+	touch "out/.stamp"
+	echo "Touched the Ghost of Nuked Past"
+fi
+
+# to be sure to be sure
+cd "$BUILD_TOP"
+
+OLD_BN=$BUILD_NUMBER
+BUILD_NUMBER="eng.$USER.$(date +%Y%m%d.%H%M%S)"
+# Building
+. build-pac.sh $Device
+CheckReturn $?
+BUILD_NUMBER=$OLD_BN
+CheckReturn $?
+
+# Find output zip
+echo "Zips"
+
+if [ -z $OUTDIR ]; then
+    echo -e ""
+    echo -e ${cya}"No external out, using default ($OUTDIR)"${txtrst}
+    echo -e ""
+
+    PROD_OUT_DIR="$BUILD_TOP/out/target/product/$Device"
+else
+    echo -e ""
+    echo -e ${cya}"External out DIR is set ($OUTDIR)"${txtrst}
+    echo -e ""
+
+    PROD_OUT_DIR="$OUTDIR/target/product/$Device"
+fi
+    
+echo $PROD_OUT_DIR
+
+built_zip=$(ls -t $PROD_OUT_DIR/*.zip | head -1)
+
+echo "$built_zip"
+
+if [ ! -f "$built_zip" ]; then
+	echo -e ""
+    echo -e ${red}"Error: cannot find built zip in $built_zip"${txtrst}
+    echo -e ""
+	exit 1
+fi
+
+# Copy output zip to well known place
+cp "$built_zip" "$outzip"
+md5sum $outzip > $OUT_MD5SUM
+
+# UPLOAD!
+#Basket broke BB-up so force full rom uploads for now
+upload_file $REMOTE_HOST $REMOTE_DIR $outzip zip
+upload_file $REMOTE_HOST $REMOTE_DIR $OUT_MD5SUM
+
+# Update the OTA junk
+update_ota "$Device" "$outzip"
+
+# Cleanup
+
+mv "$PROD_OUT_DIR" "$PROD_OUT_DIR.del"
+ionice -c 3 rm -rf "$PROD_OUT_DIR.del" &
+
+# Cleanup the out folder to save space
+echo "cleaning old logs"
+files=$(find "$OUT_TOP" -type f -mtime +7 ! -name "*.zip")
+for p in $files; do
+	f=$(basename $p)
+	echo "delete old log $f"
+	rm -f "$p"
+done
+ 
+echo "cleaning old roms"
+files=$(find "$OUT_TOP" -type f -mtime +7 -name "*.zip")
+for p in $files; do
+	f=$(basename $p)
+	echo "delete old rom $f"
+	rm -f "$p"
+done
+
+# Remove the old ccaches
+if [ -z "$CCACHE_BIG" ]; then
+	for pathname in $CCACHE_ROOT/.ccache-pac_*; do
+		if [ ! -f "$pathname/.lastused" ]; then
+			touch "$pathname/.lastused"
+			continue
+		fi
+		t=$(stat -c "%Y" "$pathname/.lastused")
+		delta=$((now-t))
+		if [ "$delta" -ge "$MAX_CCACHE_UNUSED" ]; then
+			echo "delete old ccache $pathname"
+			rm -rf "$pathname"
+		fi
+	done
+fi

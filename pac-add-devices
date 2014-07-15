@@ -1,0 +1,276 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import getopt
+import urllib2
+import json
+import re
+from xml.etree import ElementTree
+
+# in-place prettyprint formatter
+def indent(elem, level=0):
+    i = "\n" + level*"  "
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + "  "
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+        for elem in elem:
+            indent(elem, level+1)
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
+
+def load_manifest(file):
+    try:
+        m = ElementTree.parse(file)
+        m = m.getroot()
+    except:
+        m = ElementTree.Element("manifest")
+
+    return m
+
+def load_main_manifest():
+    m = load_manifest(".repo/manifest.xml")
+    for root, subdirs, files in os.walk(".repo/local_manifests"):
+        for f in files:
+            if f.endswith('.xml') and f != "device.xml":
+                lm = load_manifest(os.path.join(root, f))
+                m.append(lm)
+
+    return m
+
+def load_nightly_list(file):
+    nightly_list = dict()
+
+    try:
+        m = ElementTree.parse(file)
+        m = m.getroot()
+    except:
+        m = ElementTree.Element("manifest")
+
+    for e in m.findall("device"):
+        name = e.get('name')
+        priority = e.get('priority')
+        nightly_list[name] = priority
+
+    return nightly_list
+
+def project_in_manifest(manifest, name):
+    for project in manifest.findall("project"):
+        if project.get("name") == name:
+            return True
+
+    return False
+
+def paths_conflict(path1, path2):
+    if len(path1) < len(path2):
+        path1, path2 = path2, path1
+
+    while len(path1) >= len(path2):
+        if path1 == path2:
+            return True
+        idx = path1.rfind('/')
+        if idx > 0:
+            path1 = path1[0:idx]
+        else:
+            path1 = ''
+
+    return False
+
+def path_in_manifest(manifest, path):
+    for project in manifest.findall("project"):
+        project_path = project.get("path")
+        if paths_conflict(project_path, path):
+            return True
+
+    return False
+
+def write_manifest(manifest, path):
+    indent(manifest, 0)
+
+    f = open(path, 'w')
+    f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+    f.write(ElementTree.tostring(manifest))
+    f.close()
+
+def get_device_dependencies(main_manifest, device):
+    try:
+        depfile = open('vendor/pac/dependencies/%s.dependencies' % device, 'r')
+        deps = json.loads(depfile.read())
+        depfile.close()
+    except:
+        print 'ineligible device %s: malformed dependencies file' % device
+        return []
+
+    projects = []
+    for dep in deps:
+        try:
+            dep_name = dep['account'] + "/" + dep['repository']
+            dep_path = dep['target_path']
+            dep_revision = dep['revision']
+        except:
+            print 'ineligible device %s: incomplete dependency' % device
+            return []
+
+        if project_in_manifest(main_manifest, dep_name):
+            print 'ineligible device %s: project %s in main_manifest' % (device, dep_name)
+            return []
+        if path_in_manifest(main_manifest, dep_path):
+            print 'ineligible device %s: path %s in main_manifest' % (device, dep_path)
+            return []
+
+        p = ElementTree.Element("project", attrib = {
+                "path": dep_path,
+                "remote": "github",
+                "name": dep_name,
+                "revision": dep_revision
+            })
+        projects.append(p)
+
+    return projects
+
+
+def get_device_list():
+    blacklisted = set()
+    # ville:
+    #   MODULE.TARGET.ETC.init.target.rc defined by device/htc/ville/rootdir/Android.mk
+    #   conflicts with definition in device/samsung/d2-common/rootdir/Android.mk which
+    #   is used by tier1 d2* devices.
+    #blacklisted.add('ville')
+    device_list = []
+    for root, subdirs, files in os.walk("vendor/pac/products"):
+        for f in files:
+            if not (f.startswith('pac_') and f.endswith('.mk')):
+                continue
+            d = f[4:-3]
+            if d in blacklisted:
+                print 'ineligible device %s: blacklisted' % d
+                continue
+            if not os.path.exists('vendor/pac/dependencies/%s.dependencies' % d):
+                print 'ineligible device %s: no dependencies' % d
+                continue
+            if os.path.exists('vendor/pac/manifest/%s.adds' % d) or os.path.exists('vendor/pac/manifest/%s.removes' % d):
+                print 'ineligible device %s: has adds/removes' % d
+                continue
+            device_list.append(d)
+    device_list.sort()
+    return device_list
+
+def project_name_priority(name):
+    name_prio = {
+            'pac-man/': 3,
+            'pac-' : 2,
+            'themuppets/': 1,
+        }
+
+    lower_name = name.lower()
+    for k, v in name_prio.iteritems():
+        if lower_name.startswith(k):
+            return v
+    return 0
+
+def check_manifest_conflicts(device_manifest, device1, device2):
+    projects1 = device_manifest[device1]
+    projects2 = device_manifest[device2]
+
+    for p1 in projects1:
+        path1 = p1.get('path')
+        name1 = p1.get('name')
+
+        for p2 in projects2:
+            path2 = p2.get('path')
+            name2 = p2.get('name')
+
+            if path1 == path2:
+                if name1 == name2:
+                    continue
+                prio1 = project_name_priority(name1)
+                prio2 = project_name_priority(name2)
+                loser = ''
+                if prio1 > prio2:
+                    loser = device2
+                else:
+                    loser = device1
+                print 'ineligible device %s: path %s incompatible between %s and %s' % (loser, path1, device1, device2)
+                return loser
+            else:
+                if paths_conflict(path1, path2):
+                    if len(path1) > len(path2):
+                        loser = device1
+                    else:
+                        loser = device2
+                    print 'ineligible device %s: paths %s and %s conflict between %s and %s' % (loser, path1, path2, device1, device2)
+                    return loser
+
+    return ''
+
+optargs, argv = getopt.getopt(sys.argv[1:], 'd', ['debug'])
+for k, v in optargs:
+    if k in ('-d', '--debug'):
+        debug_level += 1
+
+local_device_list = []
+if len(argv) > 0:
+    local_device_list = argv
+
+main_manifest = load_main_manifest()
+full_device_list = get_device_list()
+nightly_list = load_nightly_list('vendor/pac/nightly.xml')
+device_dependencies = {}
+removes = set() # XXX: cannot remove during iteration
+for d in full_device_list:
+    projects = get_device_dependencies(main_manifest, d)
+    if len(projects) == 0:
+        removes.add(d)
+        continue
+    device_dependencies[d] = projects
+
+for d in removes:
+    full_device_list.remove(d)
+
+removes = set()
+for d1 in full_device_list:
+    for d2 in full_device_list:
+        if d1 == d2:
+            continue
+        if d1 in removes or d2 in removes:
+            continue
+        if not d1 in nightly_list or not d2 in nightly_list:
+            continue
+        c = check_manifest_conflicts(device_dependencies, d1, d2)
+        if c != '':
+            removes.add(c)
+
+for d in removes:
+    full_device_list.remove(d)
+    del device_dependencies[d]
+
+device_list = full_device_list
+if len(local_device_list) > 0:
+    for d in full_device_list:
+        if not d in local_device_list:
+            device_list.remove(d)
+
+# Create manifest from device dependencies
+device_projects = set()
+m = ElementTree.Element("manifest")
+for d in device_list:
+    if not d in nightly_list:
+        continue
+    p = ElementTree.Comment(' device name=%s priority=%s ' % (d, nightly_list[d]))
+    m.append(p)
+    for p in device_dependencies[d]:
+        name = p.get('name').lower()
+        if name in device_projects:
+            continue
+        m.append(p)
+        device_projects.add(name)
+
+# Write device manifest
+if not os.path.exists('.repo/local_manifests'):
+    os.mkdir('.repo/local_manifests')
+write_manifest(m, '.repo/local_manifests/device.xml')
