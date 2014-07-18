@@ -4,7 +4,21 @@ PATH="/home/build/jenk-bin:$PATH"
 
 BUILD_TOP="$HOME/src/$Tree"
 
-PROD_OUT_DIR="$BUILD_TOP/out/target/product/$Device"
+if [ -z $OUTDIR ]; then
+    echo -e ""
+    echo -e ${cya}"No external out, using default ($OUTDIR)"${txtrst}
+    echo -e ""
+
+    PROD_OUT_DIR="$BUILD_TOP/out/target/product/$Device"
+else
+    echo -e ""
+    echo -e ${cya}"External out DIR is set ($OUTDIR)"${txtrst}
+    echo -e ""
+
+    PROD_OUT_DIR="$OUTDIR/target/product/$Device"
+fi
+
+#PROD_OUT_DIR="$BUILD_TOP/out/target/product/$Device"
 
 # Min time ro re-run the git reset and repo sync
 # 43200 = 12 hrs
@@ -122,7 +136,7 @@ else
     echo "No Sources Configuring!"
 	mkdir -p "$BUILD_TOP"
 	cd "$BUILD_TOP"
-	repo init -u https://github.com/PAC-man/pacman -b $Tree
+	repo init -u https://github.com/PAC-man/pacman -b "$Tree"
     CheckReturn $? 
 	repo sync -j8
     CheckReturn $? 
