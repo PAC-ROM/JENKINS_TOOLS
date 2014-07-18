@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PATH=$PATH:~/bin
+PATH="/home/build/jenk-bin:$PATH"
 
 BUILD_TOP="$HOME/src/$Tree"
 
