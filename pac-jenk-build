@@ -160,6 +160,7 @@ exec &> >(tee -a $logpath)
 now=$(date "+%s")
 #edit 1
 needs_run=1
+
 if [ -f "$OUT_TOP/.pre-script" ]; then
     t=$(stat -c "%Y" $OUT_TOP/.pre-script)
     delta=$((now-t))
@@ -172,11 +173,14 @@ fi
 # local builds.
 
 if [ $needs_run -ne 0 ] || [ $Sync_Force ]; then
+
     echo "Reseting all repositories..."
     echo ""
+    
     if [ -d ".repo/local_manifests" ]; then
         find ".repo/local_manifests" -type f ! -name "device.xml" -print0 | xargs -0 rm -f
     fi
+    
     repo sync -j30 -c "vendor/pac"
     CheckReturn $?
     pac-add-devices
@@ -190,15 +194,17 @@ if [ $needs_run -ne 0 ] || [ $Sync_Force ]; then
     # again.
     # may have problems if there is a change on the tree ( but there shouldn't be this is the slave 
     # tree ) 
+    
     if [ $worked -ne 0 ]; then
         repo forall -c "git reset --hard HEAD; git clean -q -f"
-	CheckReturn $?
-	repo sync -j8 -c
- 	CheckReturn $?
+	    CheckReturn $?
+	    repo sync -j8 -c
+     	CheckReturn $?
     fi
 
     make clean
     touch "$OUT_TOP/.pre-script"
+    
 fi
 
 echo ""
@@ -209,11 +215,11 @@ if [ -f "out/.stamp" ]; then
     stamp=$(stat -c "%Y" "out/.stamp")
     delta=$((now-stamp))
     if [ "$delta" -lt "$MAX_OUT_TIME" ]; then
-	echo "Who ya gonna call?!"
-	rm -rf "out/*"
-	mkdir -p "out"
-	touch "out/.stamp"
-	echo "Ghosts Busters!"
+	    echo "Who ya gonna call?!"
+	    rm -rf "out/*"
+	    mkdir -p "out"
+	    touch "out/.stamp"
+	    echo "Ghosts Busters!"
     fi
 else
 	touch "out/.stamp"
