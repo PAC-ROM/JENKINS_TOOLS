@@ -1,5 +1,7 @@
 #!/bin/bash
 
+echo "Out - "$OUT_DIR_COMMON_BASE
+
 PATH="/home/build/jenk-bin:$PATH"
 
 BUILD_TOP="$HOME/src/$Tree"
