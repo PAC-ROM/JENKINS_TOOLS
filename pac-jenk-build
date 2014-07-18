@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source ~/.bashrc
+
 echo "Out - $OUT_DIR_COMMON_BASE - set"
 
 PATH="/home/build/jenk-bin:$PATH"
