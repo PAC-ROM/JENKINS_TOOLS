@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Out - "$OUT_DIR_COMMON_BASE
+echo "Out - $OUT_DIR_COMMON_BASE - set"
 
 PATH="/home/build/jenk-bin:$PATH"
 
