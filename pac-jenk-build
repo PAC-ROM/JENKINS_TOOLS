@@ -176,7 +176,7 @@ fi
 # Nuke any local manifests, in case somebody has been playing with
 # local builds.
 
-if [ $needs_run -ne 0 ] || [ $Sync_Force -ne 0 ]; then
+if [ $needs_run -ne 0 ] || [ -n $Sync_Force ]; then
 
     echo "Reseting all repositories..."
     echo ""
