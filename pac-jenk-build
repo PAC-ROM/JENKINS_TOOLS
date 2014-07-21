@@ -1,13 +1,13 @@
 #!/bin/bash
 
-if [ -f /home/build/bin/.bashrc]; then 
+if [ -f /home/build/bin/.bashrc ]; then 
     source ~/.bashrc
 fi
 
 
 # custom slave script runnerer
 
-if [ -f /home/build/bin/pre-user.sh]; then 
+if [ -f /home/build/bin/pre-user.sh ]; then 
     /home/build/bin/pre-user.sh
 fi
 
