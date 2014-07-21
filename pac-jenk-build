@@ -2,6 +2,12 @@
 
 source ~/.bashrc
 
+# custom slave script runnerer
+
+if [ -f /home/build/bin/pre-user.sh]; then 
+ ./home/build/bin/pre-user.sh
+endif
+
 echo "Out - $OUT_DIR_COMMON_BASE - set"
 
 PATH="/home/build/jenk-bin:$PATH"
