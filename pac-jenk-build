@@ -1,12 +1,15 @@
 #!/bin/bash
 
-source ~/.bashrc
+if [ -f /home/build/bin/.bashrc]; then 
+    source ~/.bashrc
+fi
+
 
 # custom slave script runnerer
 
 if [ -f /home/build/bin/pre-user.sh]; then 
- /home/build/bin/pre-user.sh
-endif
+    /home/build/bin/pre-user.sh
+fi
 
 echo "Out - $OUT_DIR_COMMON_BASE - set"
 
