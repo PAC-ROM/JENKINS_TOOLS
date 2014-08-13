@@ -25,7 +25,7 @@ MIN_PRE_TIME=43200
 # Keep out tree for ~12 hrs
 MAX_OUT_TIME=43200
 # Keep unused ccache dirs for no more than one week
-MAX_CCACHE_UNUSED=1209600
+MAX_CCACHE_UNUSED=604800
 
 # Deal with timeouts
 export GIT_HTTP_LOW_SPEED_TIME=300
