@@ -179,7 +179,7 @@ if [ -f "$OUT_TOP/.pre-script" ]; then
     delta=$((now-t))
     if [ $delta -lt $MIN_PRE_TIME ]; then
         needs_run=0
-        echo "Sources are old"
+        echo "Sources are old $delta"
     fi
 fi
 
