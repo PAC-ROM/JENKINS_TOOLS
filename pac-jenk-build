@@ -179,14 +179,14 @@ if [ -f "$OUT_TOP/.pre-script" ]; then
     delta=$((now-t))
     if [ $delta -lt $MIN_PRE_TIME ]; then
         needs_run=0
-        echo "Sources are old $delta"
+        echo "Sources are fine dT-$delta"
     fi
 fi
 
 # Nuke any local manifests, in case somebody has been playing with
 # local builds.
 
-if [ $needs_run -ne 0 ] || [ -n $Sync_Force ]; then
+if [ $needs_run -ne 0 ]; then
 
     echo "Reseting all repositories..."
     echo ""
