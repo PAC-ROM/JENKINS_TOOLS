@@ -177,7 +177,7 @@ needs_run=1
 if [ -f "$OUT_TOP/.pre-script" ]; then
     t=$(stat -c "%Y" $OUT_TOP/.pre-script)
     delta=$((now-t))
-    if [ "$delta" -lt "$MIN_PRE_TIME" ]; then
+    if [ $delta -lt $MIN_PRE_TIME ]; then
         needs_run=0
         echo "Sources are old"
     fi
