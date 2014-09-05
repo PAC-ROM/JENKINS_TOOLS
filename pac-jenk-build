@@ -143,7 +143,7 @@ fi
 
 # Read jenkins config
 if [ -f $jenkins_pac_conf ]; then
-    export CCACHE_ROOT=`grep "ccache_root" $jenkins_pac_conf | cut -d'=' -f2`
+	export CCACHE_ROOT=`grep "ccache_root" $jenkins_pac_conf | cut -d'=' -f2`
 	export CCACHE_BIG=`grep "ccache_big" $jenkins_pac_conf | cut -d'=' -f2`
 fi
 
@@ -165,7 +165,9 @@ if [ -z "$CCACHE_BIG" ]; then
 	fi
 	touch "$CCACHE_DIR/.lastused"
 else
-	mkdir -p $CCACHE_ROOT/.ccache-big-pac 
+ 	export CCACHE_DIR="$CCACHE_ROOT/.ccache-big-pac"
+ 	mkdir -p $CCACHE_DIR
+ 	$CCACHE_BIN -M $CCACHE_BIG
 fi
 
 exec &> >(tee -a $logpath)
