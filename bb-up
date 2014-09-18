@@ -129,7 +129,7 @@ def put_file_delta(rdir, newpath, oldpath):
     rc = False
     if child.returncode == 0:
         for line in out.split("\n"):
-            if line == 'result=ok':
+            if line == 'mk-delta_result=ok':
                 rc = True
 
     # XXX
