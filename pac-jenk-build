@@ -1,13 +1,13 @@
 #!/bin/bash
 
-if [ -f /home/build/bin/.bashrc ]; then 
+if [ -f /home/build/bin/.bashrc ]; then
     source ~/.bashrc
 fi
 
 
 # custom slave script runnerer
 
-if [ -f /home/build/bin/pre-user.sh ]; then 
+if [ -f /home/build/bin/pre-user.sh ]; then
     /home/build/bin/pre-user.sh
 fi
 
@@ -70,8 +70,8 @@ echo ""
 CheckReturn(){
 
     if [ $@ -ne 0 ]; then
-		echo -e ${RED}"GAME OVER!"${txtrst}
-	    exit 1 
+        echo -e ${RED}"GAME OVER!"${txtrst}
+        exit 1
     fi
 
 }
@@ -105,7 +105,7 @@ update_ota()
     otatype=$Type
     otaver=${filename%.*}
     pac-push-ota "$otatype" "$device" "$otaver" "$md5" "$dlurl"
-	} &> /dev/null
+    } &> /dev/null
     echo "Sent OTA $device $filename MD5 $md5 OTA"
 }
 
@@ -119,8 +119,8 @@ upload_file(){
         echo "bb up $remote_dir  $local_pathname"
         bb-up "$remote_dir" "$local_pathname"
     else
-        echo "ncftpput -bb -f ~/pacman $remote_dir $local_pathname" 
-	ncftpput -bb -f ~/pacman "$remote_dir" "$local_pathname"
+        echo "ncftpput -bb -f ~/pacman $remote_dir $local_pathname"
+    ncftpput -bb -f ~/pacman "$remote_dir" "$local_pathname"
         batchid=$(pgrep ncftpbatch)
         if [[ -z $batchid ]]; then
             ncftpbatch -d
@@ -131,20 +131,20 @@ upload_file(){
 
 if [ -d "$BUILD_TOP/.repo" ]; then
     echo "Sources Found"
-else 
+else
     echo "No Sources Configuring!"
-	mkdir -p "$BUILD_TOP"
-	cd "$BUILD_TOP"
-	repo init -u https://github.com/PAC-man/pacman -b $Tree
-    CheckReturn $? 
-	repo sync -j8
-    CheckReturn $? 
+    mkdir -p "$BUILD_TOP"
+    cd "$BUILD_TOP"
+    repo init -u https://github.com/PAC-man/pacman -b $Tree
+    CheckReturn $?
+    repo sync -j8
+    CheckReturn $?
 fi
 
 # Read jenkins config
 if [ -f $jenkins_pac_conf ]; then
-	export CCACHE_ROOT=`grep "ccache_root" $jenkins_pac_conf | cut -d'=' -f2`
-	export CCACHE_BIG=`grep "ccache_big" $jenkins_pac_conf | cut -d'=' -f2`
+    export CCACHE_ROOT=`grep "ccache_root" $jenkins_pac_conf | cut -d'=' -f2`
+    export CCACHE_BIG=`grep "ccache_big" $jenkins_pac_conf | cut -d'=' -f2`
 fi
 
 # Setup ccache
@@ -158,16 +158,16 @@ mkdir -p $OUT_BASE
 
 #create ccache dir
 if [ -z "$CCACHE_BIG" ]; then
-	export CCACHE_DIR="$CCACHE_ROOT/.ccache-pac_$Device"
-	if [ ! -d "$CCACHE_DIR" -a -x "$CCACHE_BIN" ]; then
-		mkdir -p "$CCACHE_DIR"
-		$CCACHE_BIN -M 8G
-	fi
-	touch "$CCACHE_DIR/.lastused"
+    export CCACHE_DIR="$CCACHE_ROOT/.ccache-pac_$Device"
+    if [ ! -d "$CCACHE_DIR" -a -x "$CCACHE_BIN" ]; then
+        mkdir -p "$CCACHE_DIR"
+        $CCACHE_BIN -M 8G
+    fi
+    touch "$CCACHE_DIR/.lastused"
 else
- 	export CCACHE_DIR="$CCACHE_ROOT/.ccache-big-pac"
- 	mkdir -p $CCACHE_DIR
- 	$CCACHE_BIN -M $CCACHE_BIG
+    export CCACHE_DIR="$CCACHE_ROOT/.ccache-big-pac"
+    mkdir -p $CCACHE_DIR
+    $CCACHE_BIN -M $CCACHE_BIG
 fi
 
 exec &> >(tee -a $logpath)
@@ -192,11 +192,11 @@ if [ $needs_run -ne 0 ]; then
 
     echo "Reseting all repositories..."
     echo ""
-    
+
     if [ -d ".repo/local_manifests" ]; then
         find ".repo/local_manifests" -type f ! -name "device.xml" -print0 | xargs -0 rm -f
     fi
-    
+
     repo sync -j30 -c "vendor/pac"
     CheckReturn $?
     pac-add-devices
@@ -206,21 +206,21 @@ if [ $needs_run -ne 0 ]; then
     repo sync -j8 -c
     CheckReturn $?
 
-    # work around for if a pacackage changes remotes the first git reset will fail so sync and try 
+    # work around for if a pacackage changes remotes the first git reset will fail so sync and try
     # again.
-    # may have problems if there is a change on the tree ( but there shouldn't be this is the slave 
-    # tree ) 
-    
+    # may have problems if there is a change on the tree ( but there shouldn't be this is the slave
+    # tree )
+
     if [ $worked -ne 0 ]; then
         repo forall -c "git reset --hard HEAD; git clean -q -f"
-	    CheckReturn $?
-	    repo sync -j8 -c
-     	CheckReturn $?
+        CheckReturn $?
+        repo sync -j8 -c
+        CheckReturn $?
     fi
 
     make clean
     touch "$OUT_TOP/.pre-script"
-    
+
 fi
 
 echo ""
@@ -231,20 +231,51 @@ if [ -f "out/.stamp" ]; then
     stamp=$(stat -c "%Y" "out/.stamp")
     delta=$((now-stamp))
     if [ "$delta" -lt "$MAX_OUT_TIME" ]; then
-	    echo "Who ya gonna call?!"
-	    rm -rf "out/*"
-	    mkdir -p "out"
-	    touch "out/.stamp"
-	    echo "Ghosts Busters!"
+        echo "Who ya gonna call?!"
+        rm -rf "out/*"
+        mkdir -p "out"
+        touch "out/.stamp"
+        echo "Ghosts Busters!"
     fi
 else
-	touch "out/.stamp"
-	echo "Touched the Ghost of Nuked Past"
+    touch "out/.stamp"
+    echo "Touched the Ghost of Nuked Past"
 fi
 
 # to be sure to be sure
 cd "$BUILD_TOP"
 
+# *************************************************** #
+# This is where we figure out who's who and how's how
+# *************************************************** #
+
+echo "Checking for Adds/Removes/Cherries"
+echo ""
+
+grep -Fq "$Device" vendor/pac/tools/cherries.sh
+WEEKLY_TREE=0
+if [ -f "vendor/pac/manifest/$Device.adds" ] || [ -f "vendor/pac/manifest/$Device.removes" ] || [ $? -eq 0 ]; then
+    echo "Well This is Awkward. I'm Gonna Have to repo a New Source Tree Just For You"
+
+    WEEKLY_TREE=1
+    BUILD_TOP="$HOME/src/workspace/$Tree"
+    PROD_OUT_DIR="$BUILD_TOP/out/target/product/$Device"
+
+    mkdir -p "$BUILD_TOP"
+    cd "$BUILD_TOP"
+    repo init -u --reference=$HOME/src/$Tree https://github.com/PAC-man/pacman -b $Tree
+    CheckReturn $? #will kill build if it fails
+    repo sync -j8
+    CheckReturn $? #will kill build if it fails
+    if [[ -n $(repo branch | grep auto) ]]; then
+        repo abandon auto
+    fi
+    CheckReturn $? #will kill build if it fails
+else
+    echo "Normal Device. Continuing as per usual"
+fi
+
+#
 OLD_BN=$BUILD_NUMBER
 BUILD_NUMBER="eng.$USER.$(date +%Y%m%d.%H%M%S)"
 # Building
@@ -269,7 +300,7 @@ else
 
     PROD_OUT_DIR="$OUTDIR/target/product/$Device"
 fi
-    
+
 echo $PROD_OUT_DIR
 
 built_zip=$(ls -t $PROD_OUT_DIR/*.zip | head -1)
@@ -277,10 +308,10 @@ built_zip=$(ls -t $PROD_OUT_DIR/*.zip | head -1)
 echo "$built_zip"
 
 if [ ! -f "$built_zip" ]; then
-	echo -e ""
+    echo -e ""
     echo -e ${red}"Error: cannot find built zip in $built_zip"${txtrst}
     echo -e ""
-	exit 1
+    exit 1
 fi
 
 # Copy output zip to well known place
@@ -304,31 +335,31 @@ ionice -c 3 rm -rf "$PROD_OUT_DIR.del" &
 echo "cleaning old logs"
 files=$(find "$OUT_TOP" -type f -mtime +7 ! -name "*.zip")
 for p in $files; do
-	f=$(basename $p)
-	echo "delete old log $f"
-	rm -f "$p"
+    f=$(basename $p)
+    echo "delete old log $f"
+    rm -f "$p"
 done
- 
+
 echo "cleaning old roms"
 files=$(find "$OUT_TOP" -type f -mtime +7 -name "*.zip")
 for p in $files; do
-	f=$(basename $p)
-	echo "delete old rom $f"
-	rm -f "$p"
+    f=$(basename $p)
+    echo "delete old rom $f"
+    rm -f "$p"
 done
 
 # Remove the old ccaches
 if [ -z "$CCACHE_BIG" ]; then
-	for pathname in $CCACHE_ROOT/.ccache-pac_*; do
-		if [ ! -f "$pathname/.lastused" ]; then
-			touch "$pathname/.lastused"
-			continue
-		fi
-		t=$(stat -c "%Y" "$pathname/.lastused")
-		delta=$((now-t))
-		if [ "$delta" -ge "$MAX_CCACHE_UNUSED" ]; then
-			echo "delete old ccache $pathname"
-			rm -rf "$pathname"
-		fi
-	done
+    for pathname in $CCACHE_ROOT/.ccache-pac_*; do
+        if [ ! -f "$pathname/.lastused" ]; then
+            touch "$pathname/.lastused"
+            continue
+        fi
+        t=$(stat -c "%Y" "$pathname/.lastused")
+        delta=$((now-t))
+        if [ "$delta" -ge "$MAX_CCACHE_UNUSED" ]; then
+            echo "delete old ccache $pathname"
+            rm -rf "$pathname"
+        fi
+    done
 fi
