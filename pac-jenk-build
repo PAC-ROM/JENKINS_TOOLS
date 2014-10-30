@@ -262,7 +262,7 @@ if [ $? -eq 0 ] || [ -f "vendor/pac/manifest/$Device.adds" ] || [ -f "vendor/pac
     WEEKLY_TREE=1
     BUILD_TOP="$HOME/src/workspace/$Tree"
     PROD_OUT_DIR="$BUILD_TOP/out/target/product/$Device"
-
+    rm -rf "$BUILD_TOP"
     mkdir -p "$BUILD_TOP"
     cd "$BUILD_TOP"
     repo init -u https://github.com/PAC-man/pacman --reference=$HOME/src/$Tree -b $Tree
