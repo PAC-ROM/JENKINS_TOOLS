@@ -265,7 +265,7 @@ if [ $? -eq 0 ] || [ -f "vendor/pac/manifest/$Device.adds" ] || [ -f "vendor/pac
 
     mkdir -p "$BUILD_TOP"
     cd "$BUILD_TOP"
-    repo init -u --reference=$HOME/src/$Tree https://github.com/PAC-man/pacman -b $Tree
+    repo init -u https://github.com/PAC-man/pacman --reference=$HOME/src/$Tree -b $Tree
     CheckReturn $? #will kill build if it fails
     repo sync -j8
     CheckReturn $? #will kill build if it fails
