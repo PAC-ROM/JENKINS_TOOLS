@@ -252,9 +252,11 @@ cd "$BUILD_TOP"
 echo "Checking for Adds/Removes/Cherries"
 echo ""
 
-grep -Fq "$Device" vendor/pac/tools/cherries.sh
 WEEKLY_TREE=0
-if [ -f "vendor/pac/manifest/$Device.adds" ] || [ -f "vendor/pac/manifest/$Device.removes" ] || [ $? -eq 0 ]; then
+
+grep -Fq "$Device" vendor/pac/tools/cherries.sh
+
+if [ $? -eq 0 ] || [ -f "vendor/pac/manifest/$Device.adds" ] || [ -f "vendor/pac/manifest/$Device.removes" ]; then
     echo "Well This is Awkward. I'm Gonna Have to repo a New Source Tree Just For You"
 
     WEEKLY_TREE=1
