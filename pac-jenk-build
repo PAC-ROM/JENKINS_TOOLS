@@ -279,7 +279,7 @@ fi
 OLD_BN=$BUILD_NUMBER
 BUILD_NUMBER="eng.$USER.$(date +%Y%m%d.%H%M%S)"
 # Building
-. build-pac.sh $Device
+. build-pac.sh -f $Device
 CheckReturn $?
 BUILD_NUMBER=$OLD_BN
 CheckReturn $?
