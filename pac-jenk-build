@@ -175,6 +175,7 @@ exec &> >(tee -a $logpath)
 now=$(date "+%s")
 #edit 1
 needs_run=1
+no_reset=0
 
 if [ -f "$OUT_TOP/.pre-script" ]; then
     t=$(stat -c "%Y" $OUT_TOP/.pre-script)
@@ -182,6 +183,11 @@ if [ -f "$OUT_TOP/.pre-script" ]; then
     if [ $delta -lt $MIN_PRE_TIME ]; then
         needs_run=0
         echo "Sources are fine dT-$delta"
+            if [ -f "$OUT_TOP/.re-sync" ]; then
+                rm "$OUT_TOP/.re-sync"
+                needs_run=1
+                no_reset=1
+            fi
     fi
 fi
 
@@ -193,6 +199,10 @@ if [ $needs_run -ne 0 ]; then
     echo "Reseting all repositories..."
     echo ""
 
+    if [[ -n $(repo branch | grep auto) ]]; then
+        repo abandon auto
+    fi
+
     if [ -d ".repo/local_manifests" ]; then
         find ".repo/local_manifests" -type f ! -name "device.xml" -print0 | xargs -0 rm -f
     fi
@@ -201,8 +211,10 @@ if [ $needs_run -ne 0 ]; then
     CheckReturn $?
     pac-add-devices
     CheckReturn $?
-    repo forall -c "git reset --hard HEAD; git clean -q -f"
-    worked=$?
+    if [ no_reset -ne 0 ]; then
+        repo forall -c "git reset --hard HEAD; git clean -q -f"
+        worked=$?
+    fi
     repo sync -j8 -c
     CheckReturn $?
 
@@ -249,32 +261,14 @@ cd "$BUILD_TOP"
 # This is where we figure out who's who and how's how
 # *************************************************** #
 
-echo "Checking for Adds/Removes/Cherries"
+echo "Checking if this device has extras"
 echo ""
 
-WEEKLY_TREE=0
-
-grep -Fq "$Device" vendor/pac/tools/cherries.sh
-
-if [ $? -eq 0 ] || [ -f "vendor/pac/manifest/$Device.adds" ] || [ -f "vendor/pac/manifest/$Device.removes" ]; then
-    echo "Well This is Awkward. I'm Gonna Have to repo a New Source Tree Just For You"
-
-    WEEKLY_TREE=1
-    BUILD_TOP="$HOME/src/workspace/$Tree"
-    PROD_OUT_DIR="$BUILD_TOP/out/target/product/$Device"
-    rm -rf "$BUILD_TOP"
-    mkdir -p "$BUILD_TOP"
-    cd "$BUILD_TOP"
-    repo init -u https://github.com/PAC-man/pacman --reference=$HOME/src/$Tree -b $Tree
-    CheckReturn $? #will kill build if it fails
-    repo sync -j8
-    CheckReturn $? #will kill build if it fails
-    if [[ -n $(repo branch | grep auto) ]]; then
-        repo abandon auto
-    fi
-    CheckReturn $? #will kill build if it fails
+if xmllint --xpath '/manifest/device[@name="'$Device'" and not(@hasextras="0")]' vendor/pac/weekly.xml &> /dev/null; then
+    touch $OUT_TOP/.re-sync
+    echo "Weekly with extras. Source will be re-synced after this build"
 else
-    echo "Normal Device. Continuing as per usual"
+    echo "Normal built device. Continuing as per usual"
 fi
 
 #
