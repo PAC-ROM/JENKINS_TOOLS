@@ -211,7 +211,8 @@ if [ $needs_run -ne 0 ]; then
     CheckReturn $?
     pac-add-devices
     CheckReturn $?
-    if [ no_reset -ne 0 ]; then
+    worked=0
+    if [ $no_reset -ne 0 ]; then
         repo forall -c "git reset --hard HEAD; git clean -q -f"
         worked=$?
     fi
