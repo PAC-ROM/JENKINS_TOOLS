@@ -184,7 +184,7 @@ if [ -f "$OUT_TOP/.pre-script" ]; then
         needs_run=0
         echo "Sources are fine dT-$delta"
             if [ -f "$OUT_TOP/.re-sync" ]; then
-                rm "$OUT_TOP/.re-sync"
+                rm -f "$OUT_TOP/.re-sync"
                 needs_run=1
                 no_reset=1
             fi
