@@ -1,25 +1,25 @@
 #!/bin/bash
 
-if [ -f /home/build/.bashrc ]; then
-    source /home/build/.bashrc
+if [ -f $HOME/.bashrc ]; then
+    source $HOME/.bashrc
 fi
 
 
-# custom slave script runnerer
+# Custom slave script runner
 
-if [ -f /home/build/bin/pre-user.sh ]; then
-    /home/build/bin/pre-user.sh
+if [ -f $HOME/jenk-bin/pre-user.sh ]; then
+    $HOME/jenk-bin/pre-user.sh
 fi
 
 echo "Out - $OUT_DIR_COMMON_BASE - set"
 
-PATH="/home/build/jenk-bin:$PATH"
+PATH="$HOME/jenk-bin:$PATH"
 
 BUILD_TOP="$HOME/src/$Tree"
 
 PROD_OUT_DIR="$BUILD_TOP/out/target/product/$Device"
 
-# Min time ro re-run the git reset and repo sync
+# Min time to re-run the git reset and repo sync
 # 43200 = 12 hrs
 MIN_PRE_TIME=43200
 # Keep out tree for ~12 hrs
@@ -47,11 +47,12 @@ REMOTE_DIR=$Device/$Version
 REMOTE_HOST="pacman"
 REMOTE_DOWNLOAD_HOST="pacman.basketbuild.com"
 
-# JAVA
+# JAVA_HOME
 export PATH=/usr/bin:$PATH
-JAVA_HOME=/usr/lib/jvm/java-6-sun export JAVA_HOME=$JAVA_HOME
+JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64
+export JAVA_HOME=$JAVA_HOME
 
-# CCAHCE
+# USE_CCACHE
 export USE_CCACHE=1
 
 cd "$BUILD_TOP"
@@ -141,7 +142,7 @@ else
     CheckReturn $?
 fi
 
-# Read jenkins config
+# Read Jenkins config
 if [ -f $jenkins_pac_conf ]; then
     export CCACHE_ROOT=`grep "ccache_root" $jenkins_pac_conf | cut -d'=' -f2`
     export CCACHE_BIG=`grep "ccache_big" $jenkins_pac_conf | cut -d'=' -f2`
@@ -153,10 +154,10 @@ if [ -z "$CCACHE_ROOT" ]; then
     export CCACHE_ROOT="$HOME"
 fi
 
-#create out dir
+# Create out dir
 mkdir -p $OUT_BASE
 
-#create ccache dir
+# Create ccache dir
 if [ -z "$CCACHE_BIG" ]; then
     export CCACHE_DIR="$CCACHE_ROOT/.ccache-pac_$Device"
     if [ ! -d "$CCACHE_DIR" -a -x "$CCACHE_BIN" ]; then
@@ -191,9 +192,7 @@ if [ -f "$OUT_TOP/.pre-script" ]; then
     fi
 fi
 
-# Nuke any local manifests, in case somebody has been playing with
-# local builds.
-
+# Nuke any local manifests, in case somebody has been playing with local builds.
 if [ $needs_run -ne 0 ]; then
 
     echo "Reseting all repositories..."
@@ -219,10 +218,8 @@ if [ $needs_run -ne 0 ]; then
     repo sync -j8 -c
     CheckReturn $?
 
-    # work around for if a pacackage changes remotes the first git reset will fail so sync and try
-    # again.
-    # may have problems if there is a change on the tree ( but there shouldn't be this is the slave
-    # tree )
+    # Work around for if a package changes remotes, the first git reset will fail so sync and try again.
+    # May have problems if there is a change on the tree. (but there shouldn't be on the slave tree)
 
     if [ $worked -ne 0 ]; then
         repo forall -c "git reset --hard HEAD; git clean -q -f"
@@ -255,12 +252,12 @@ else
     echo "Touched the Ghost of Nuked Past"
 fi
 
-# to be sure to be sure
+# To be sure to be sure
 cd "$BUILD_TOP"
 
-# *************************************************** #
-# This is where we figure out who's who and how's how
-# *************************************************** #
+# ********************************************************************* #
+# This is where we figure out who's who, and how's how, and what's what
+# ********************************************************************* #
 
 echo "Checking if this device has extras"
 echo ""
@@ -272,7 +269,7 @@ else
     echo "Normal built device. Continuing as per usual"
 fi
 
-#
+# Build number
 OLD_BN=$BUILD_NUMBER
 BUILD_NUMBER="eng.$USER.$(date +%Y%m%d.%H%M%S)"
 # Building
@@ -292,7 +289,7 @@ if [ -z $OUTDIR ]; then
     PROD_OUT_DIR="$BUILD_TOP/out/target/product/$Device"
 else
     echo -e ""
-    echo -e ${cya}"External out DIR is set ($OUTDIR)"${txtrst}
+    echo -e ${cya}"External OUTDIR is set ($OUTDIR)"${txtrst}
     echo -e ""
 
     PROD_OUT_DIR="$OUTDIR/target/product/$Device"
@@ -315,12 +312,11 @@ fi
 cp "$built_zip" "$outzip"
 md5sum $outzip > $OUT_MD5SUM
 
-# UPLOAD!
-#Basket broke BB-up so force full rom uploads for now
+# Upload output zip
 upload_file $REMOTE_HOST $REMOTE_DIR $outzip zip
 upload_file $REMOTE_HOST $REMOTE_DIR $OUT_MD5SUM
 
-# Update the OTA junk
+# Update the OTA
 update_ota "$Device" "$outzip"
 
 # Cleanup
@@ -328,24 +324,24 @@ update_ota "$Device" "$outzip"
 mv "$PROD_OUT_DIR" "$PROD_OUT_DIR.del"
 ionice -c 3 rm -rf "$PROD_OUT_DIR.del" &
 
-# Cleanup the out folder to save space
-echo "cleaning old logs"
+# Cleanup the out folder
+echo "Cleaning old logs..."
 files=$(find "$OUT_TOP" -type f -mtime +7 ! -name "*.zip")
 for p in $files; do
     f=$(basename $p)
-    echo "delete old log $f"
+    echo "Deleting old log: $f"
     rm -f "$p"
 done
 
-echo "cleaning old roms"
+echo "Cleaning old ROMs..."
 files=$(find "$OUT_TOP" -type f -mtime +7 -name "*.zip")
 for p in $files; do
     f=$(basename $p)
-    echo "delete old rom $f"
+    echo "Deleting old ROM: $f"
     rm -f "$p"
 done
 
-# Remove the old ccaches
+# Cleanup the old ccaches
 if [ -z "$CCACHE_BIG" ]; then
     for pathname in $CCACHE_ROOT/.ccache-pac_*; do
         if [ ! -f "$pathname/.lastused" ]; then
@@ -355,7 +351,7 @@ if [ -z "$CCACHE_BIG" ]; then
         t=$(stat -c "%Y" "$pathname/.lastused")
         delta=$((now-t))
         if [ "$delta" -ge "$MAX_CCACHE_UNUSED" ]; then
-            echo "delete old ccache $pathname"
+            echo "Deleting old ccache: $pathname"
             rm -rf "$pathname"
         fi
     done
