@@ -176,8 +176,17 @@ olddatestr = "%04d%02d%02d" % (olddate.year, olddate.month, olddate.day)
 
 oldpath = newpath.replace(newdatestr, olddatestr)
 
+# check for oldfile on the bot
 if not os.path.exists(oldpath):
-    logi("oldpath does not exist, fall back to normal upload")
+    logi("yesterdays build not found on bot, fall back to normal upload")
+    put_file(remotedir, newpath)
+    sys.exit(0)
+
+# check for oldfile on the server
+roldfile = newfile.replace(newdatestr, olddatestr)
+cmd = "ncftpls -f /home/build/pacman -1 ftp://basketbuild.com/./%s/ | grep -i %s" % (remotedir, roldfile)
+if not subprocess.call(cmd, shell=True) == 0:
+    logi("yesterdays build not found on server, fall back to normal upload")
     put_file(remotedir, newpath)
     sys.exit(0)
 
