@@ -9,6 +9,7 @@ import time
 import subprocess
 import pipes
 import md5
+import csv
 
 debug_level = 0
 foreground = False
@@ -138,6 +139,52 @@ def put_file_delta(rdir, newpath, oldpath):
 
     return rc
 
+def remove_undersized(ftyp):
+    cmd = "ncftpls -f /home/build/pacman '-x l *%s' ftp://basketbuild.com/./%s/" % (ftyp, remotedir)
+    get_remote_list = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+    stdout, stderr = get_remote_list.communicate()
+    zip_list = csv.DictReader(stdout.decode('ascii').splitlines(),
+                            delimiter=' ', skipinitialspace=True,
+                            fieldnames=['permissions', 'type',
+                                        'owner', 'group', 'size',
+                                        'month', 'date', 'time', 'name'])
+
+    for zip in zip_list:
+        if int((zip.get('size'))) < max_zip:
+            cmd = "ncftpls -f /home/build/pacman -Z '-W rm %s/%s' ftp://basketbuild.com/./%s/" % (remotedir, zip.get('name'), remotedir)
+            subprocess.Popen(cmd, shell=True)
+            print('%s  deleted ...' % (zip.get('name')))
+            if ftyp == 'zip':
+                cmd = "ncftpls -f /home/build/pacman -Z '-W rm %s/%s.md5sum' ftp://basketbuild.com/./%s/" % (remotedir, zip.get('name'), remotedir)
+                subprocess.Popen(cmd, shell=True)
+                print('%s.md5sum  deleted ...' % (zip.get('name')))
+
+def trim_the_list(ftyp):
+    count = 0
+    the_list = []
+    cmd = "ncftpls -f /home/build/pacman '-x *%s' ftp://basketbuild.com/./%s/" % (ftyp, remotedir)
+    r_list = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+    for line in iter(r_list.stdout.readline, ''):
+        the_list.append(line.rstrip('\n'))
+    for a_file in the_list:
+        f_mtime = re.search('\d{8}', a_file).group(0)
+        the_list[count] = ('%s %s' % (f_mtime, a_file))
+        count += 1
+    the_list = sorted(the_list)
+    count = 0
+    del_count = len(the_list) - max_n_zip
+    if del_count > 0:
+        print('We need to make space...')
+        while count < del_count:
+            f_date, f_del = the_list[count].split('_', 1)
+            cmd = "ncftpls -f /home/build/pacman -Z '-W rm %s/%s' ftp://basketbuild.com/./%s/" % (remotedir, f_del, remotedir)
+            subprocess.Popen(cmd, shell=True)
+            md5_del = ('%s.md5sum' % (f_del))
+            cmd = "ncftpls -f /home/build/pacman -Z '-W rm %s/%s' ftp://basketbuild.com/./%s/" % (remotedir, md5_del, remotedir)
+            subprocess.Popen(cmd, shell=True)
+            print('%s  deleted ...' % (f_del))
+            count += 1
+
 optargs, argv = getopt.getopt(sys.argv[1:], 'df', ['debug', 'foreground'])
 for k, v in optargs:
     if k in ('-d', '--debug'):
@@ -151,6 +198,22 @@ if len(argv) != 2:
 
 remotedir = argv[0]
 newpath = argv[1]
+max_zip = 185000000 # the trigger to indicate the zip is undersized and may be from a broken upload
+max_n_zip = 10 #the maximun number of zip files allowed in a nightly folder
+
+# remove undersized uploads
+print('Checking for undersized upload file(s)..')
+remove_undersized('zip')
+
+# remove unprocessed delta files
+cmd = "ncftpls -f /home/build/pacman -1 -i '*delta' ftp://basketbuild.com/./%s/" % (remotedir)
+if subprocess.call(cmd, shell=True) == 0:
+    print('Found delta file(s)! Getting rid of it..')
+    remove_undersized('delta')
+
+# remove old uploads
+print('Checking for excess baggage..')
+trim_the_list('zip')
 
 if not os.path.exists(newpath):
     print "No such file %s" % (newpath)
