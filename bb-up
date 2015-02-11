@@ -184,7 +184,7 @@ if not os.path.exists(oldpath):
 
 # check for oldfile on the server
 roldfile = newfile.replace(newdatestr, olddatestr)
-cmd = "ncftpls -f /home/build/pacman -1 ftp://basketbuild.com/./%s/ | grep -i %s" % (remotedir, roldfile)
+cmd = "ncftpls -f /home/build/pacman -1 -i '%s' ftp://basketbuild.com/./%s/" % (roldfile, remotedir)
 if not subprocess.call(cmd, shell=True) == 0:
     logi("yesterdays build not found on server, fall back to normal upload")
     put_file(remotedir, newpath)
