@@ -139,6 +139,21 @@ def put_file_delta(rdir, newpath, oldpath):
 
     return rc
 
+def remote_list(ftyp, rdir):
+    the_list = []
+    cmd = "ncftpls -f /home/build/pacman -1 -i '*%s' ftp://basketbuild.com/./%s/" % (ftyp, rdir)
+    if subprocess.call(cmd, shell=True) == 0:
+        r_list = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+        for line in iter(r_list.stdout.readline, ''):
+            the_list.append(line.rstrip('\n'))
+        return the_list
+    else:
+        return the_list
+
+def del_r_file(f_del):
+    cmd = "ncftpls -f /home/build/pacman -Z '-W rm %s/%s' ftp://basketbuild.com/./%s/" % (remotedir, f_del, remotedir)
+    subprocess.Popen(cmd, shell=True)
+
 def remove_undersized(ftyp):
     cmd = "ncftpls -f /home/build/pacman '-x l *%s' ftp://basketbuild.com/./%s/" % (ftyp, remotedir)
     get_remote_list = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
@@ -159,13 +174,8 @@ def remove_undersized(ftyp):
                 subprocess.Popen(cmd, shell=True)
                 print('%s.md5sum  deleted ...' % (zip.get('name')))
 
-def trim_the_list(ftyp):
+def trim_the_list(the_list):
     count = 0
-    the_list = []
-    cmd = "ncftpls -f /home/build/pacman '-x *%s' ftp://basketbuild.com/./%s/" % (ftyp, remotedir)
-    r_list = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-    for line in iter(r_list.stdout.readline, ''):
-        the_list.append(line.rstrip('\n'))
     for a_file in the_list:
         f_mtime = re.search('\d{8}', a_file).group(0)
         the_list[count] = ('%s %s' % (f_mtime, a_file))
@@ -201,19 +211,38 @@ newpath = argv[1]
 max_zip = 185000000 # the trigger to indicate the zip is undersized and may be from a broken upload
 max_n_zip = 10 #the maximun number of zip files allowed in a nightly folder
 
+# clean remotedir
 # remove undersized uploads
 print('Checking for undersized upload file(s)..')
 remove_undersized('zip')
 
-# remove unprocessed delta files
-cmd = "ncftpls -f /home/build/pacman -1 -i '*delta' ftp://basketbuild.com/./%s/" % (remotedir)
-if subprocess.call(cmd, shell=True) == 0:
-    print('Found delta file(s)! Getting rid of it..')
-    remove_undersized('delta')
+# get the list of what is left
+print('Getting lists of remote files...')
+r_z_list = remote_list('zip', remotedir)
+r_m_list = remote_list('md5sum', remotedir)
+r_d_list = remote_list('delta', remotedir)
+
+print('Cecking for unprocessed deleta files...')
+if r_d_list:
+    print('Found delta file(s)! Getting rid of it...')
+    for rfile in r_d_list:
+        del_r_file(rfile)
+        print('%s deleted.' % (rfile))
+
+print('Checking for incomplete sets...')
+for r_z_file in r_z_list:
+    if not ('%s.md5sum' % (r_z_file)) in r_m_list:
+        print('%s.md5sum not found' % (r_z_file))
+        del_r_file(r_z_list.pop(r_z_list.index(r_z_file)))
+
+for r_m_file in r_m_list:
+    if not r_m_file[:-7] in r_z_list:
+        print('%s not found' % (r_m_file[:-7]))
+        del_r_file(r_m_list.pop(r_m_list.index(r_m_file)))
 
 # remove old uploads
 print('Checking for excess baggage..')
-trim_the_list('zip')
+trim_the_list(r_z_list)
 
 if not os.path.exists(newpath):
     print "No such file %s" % (newpath)
