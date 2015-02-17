@@ -166,12 +166,10 @@ def remove_undersized(ftyp):
 
     for zip in zip_list:
         if int((zip.get('size'))) < max_zip:
-            cmd = "ncftpls -f /home/build/pacman -Z '-W rm %s/%s' ftp://basketbuild.com/./%s/" % (remotedir, zip.get('name'), remotedir)
-            subprocess.Popen(cmd, shell=True)
+            del_r_file(zip.get('name'))
             print('%s  deleted ...' % (zip.get('name')))
             if ftyp == 'zip':
-                cmd = "ncftpls -f /home/build/pacman -Z '-W rm %s/%s.md5sum' ftp://basketbuild.com/./%s/" % (remotedir, zip.get('name'), remotedir)
-                subprocess.Popen(cmd, shell=True)
+                del_r_file('%s.md5sum' % (zip.get('name')))
                 print('%s.md5sum  deleted ...' % (zip.get('name')))
 
 def trim_the_list(the_list):
@@ -187,11 +185,8 @@ def trim_the_list(the_list):
         print('We need to make space...')
         while count < del_count:
             f_date, f_del = the_list[count].split('_', 1)
-            cmd = "ncftpls -f /home/build/pacman -Z '-W rm %s/%s' ftp://basketbuild.com/./%s/" % (remotedir, f_del, remotedir)
-            subprocess.Popen(cmd, shell=True)
-            md5_del = ('%s.md5sum' % (f_del))
-            cmd = "ncftpls -f /home/build/pacman -Z '-W rm %s/%s' ftp://basketbuild.com/./%s/" % (remotedir, md5_del, remotedir)
-            subprocess.Popen(cmd, shell=True)
+            del_r_file(f_del)
+            del_r_file('%s.md5sum' % (f_del))
             print('%s  deleted ...' % (f_del))
             count += 1
 
