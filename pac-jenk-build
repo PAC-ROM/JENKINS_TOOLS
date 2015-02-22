@@ -15,7 +15,19 @@ echo "Out - $OUT_DIR_COMMON_BASE - set"
 
 PATH="$HOME/jenk-bin:$PATH"
 
-BUILD_TOP="$HOME/src/$Tree"
+# Read Jenkins config
+export jenkins_pac_conf=$HOME/.jenkins/config
+if [ -f $jenkins_pac_conf ]; then
+    export CCACHE_ROOT=`grep "ccache_root" $jenkins_pac_conf | cut -d'=' -f2`
+    export CCACHE_BIG=`grep "ccache_big" $jenkins_pac_conf | cut -d'=' -f2`
+    export SRC_DIR=`grep "src_dir" $jenkins_pac_conf | cut -d'=' -f2`
+fi
+
+if [ -z "$SRC_DIR" ]; then
+    SRC_DIR="$HOME/src"
+fi
+
+BUILD_TOP="$SRC_DIR/$Tree"
 
 PROD_OUT_DIR="$BUILD_TOP/out/target/product/$Device"
 
@@ -33,7 +45,6 @@ export GIT_HTTP_LOW_SPEED_LIMIT=1024
 
 export OUT_TOP=$HOME/jenkins
 export OUT_BASE=$OUT_TOP/$Version
-export jenkins_pac_conf=$HOME/.jenkins/config
 
 mkdir -p "$OUT_BASE"
 
@@ -140,12 +151,6 @@ else
     CheckReturn $?
     repo sync -j8
     CheckReturn $?
-fi
-
-# Read Jenkins config
-if [ -f $jenkins_pac_conf ]; then
-    export CCACHE_ROOT=`grep "ccache_root" $jenkins_pac_conf | cut -d'=' -f2`
-    export CCACHE_BIG=`grep "ccache_big" $jenkins_pac_conf | cut -d'=' -f2`
 fi
 
 # Setup ccache
