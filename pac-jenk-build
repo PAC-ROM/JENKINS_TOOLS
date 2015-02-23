@@ -142,7 +142,7 @@ upload_file(){
 
 
 if [ -d "$BUILD_TOP/.repo" ]; then
-    echo "Sources Found"
+    echo "Sources Found at $BUILD_TOP"
 else
     echo "No Sources Configuring!"
     mkdir -p "$BUILD_TOP"
