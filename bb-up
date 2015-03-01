@@ -148,7 +148,7 @@ def remote_list(ftyp, rdir):
 
 def del_r_file(f_del):
     cmd = "ncftpls -f /home/build/pacman -Z '-W rm %s/%s' ftp://basketbuild.com/./%s/" % (remotedir, f_del, remotedir)
-    subprocess.Popen(cmd, shell=True)
+    subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
 
 def remove_undersized(ftyp):
     cmd = "ncftpls -f /home/build/pacman '-x l *%s' ftp://basketbuild.com/./%s/" % (ftyp, remotedir)
