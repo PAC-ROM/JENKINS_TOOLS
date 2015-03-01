@@ -133,9 +133,8 @@ def put_file_delta(rdir, newpath, oldpath):
             if line == 'mk-delta_result=ok':
                 rc = True
 
-    # XXX
-    cmd = "echo rm \"%s/%s\" | ncftp pacman" % (rdir, deltafile)
-    subprocess.call(cmd, shell=True)
+    # we are done here, remove the deltafile
+    del_r_file(deltafile)
 
     return rc
 
