@@ -172,12 +172,24 @@ def remove_undersized(ftyp):
                 del_r_file('%s.md5sum' % (zip.get('name')))
                 print('%s.md5sum  deleted ...' % (zip.get('name')))
 
-def trim_the_list(the_list):
-    count = 0
-    for a_file in the_list:
-        f_mtime = re.search('\d{8}', a_file).group(0)
-        the_list[count] = ('%s %s' % (f_mtime, a_file))
-        count += 1
+def trim_the_list(ftyp):
+    the_list = []
+    cmd = "ncftpls -f /home/build/pacman -m '-x l *%s' ftp://basketbuild.com/./%s/" % (ftyp, remotedir)
+    get_remote_list = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+    subprocess.Popen(cmd, shell=True)
+    stdout, stderr = get_remote_list.communicate()
+    f_list = csv.DictReader(stdout.decode('ascii').splitlines(),
+                            delimiter=';', skipinitialspace=True,
+                            fieldnames=['modify', 'perm',
+                                        'size', 'type', 'UNIX.group',
+                                        'UNIX.mode', 'UNIX.owner', 'name'])
+    for zip in f_list:
+        if str(zip.get('name')).endswith('md5sum'):
+            continue
+        if not str(zip.get('type')) == 'type=file':
+            continue
+        m_name, m_time = zip.get('modify').split('=', 1)
+        the_list.append(m_time + '_' + zip.get('name'))
     the_list = sorted(the_list)
     count = 0
     del_count = len(the_list) - max_n_zip
