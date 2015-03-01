@@ -141,13 +141,10 @@ def put_file_delta(rdir, newpath, oldpath):
 def remote_list(ftyp, rdir):
     the_list = []
     cmd = "ncftpls -f /home/build/pacman -1 -i '*%s' ftp://basketbuild.com/./%s/" % (ftyp, rdir)
-    if subprocess.call(cmd, shell=True) == 0:
-        r_list = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-        for line in iter(r_list.stdout.readline, ''):
-            the_list.append(line.rstrip('\n'))
-        return the_list
-    else:
-        return the_list
+    r_list = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+    for line in iter(r_list.stdout.readline, ''):
+        the_list.append(line.rstrip('\n'))
+    return the_list
 
 def del_r_file(f_del):
     cmd = "ncftpls -f /home/build/pacman -Z '-W rm %s/%s' ftp://basketbuild.com/./%s/" % (remotedir, f_del, remotedir)
@@ -175,7 +172,6 @@ def trim_the_list(ftyp):
     the_list = []
     cmd = "ncftpls -f /home/build/pacman -m '-x l *%s' ftp://basketbuild.com/./%s/" % (ftyp, remotedir)
     get_remote_list = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-    subprocess.Popen(cmd, shell=True)
     stdout, stderr = get_remote_list.communicate()
     f_list = csv.DictReader(stdout.decode('ascii').splitlines(),
                             delimiter=';', skipinitialspace=True,
