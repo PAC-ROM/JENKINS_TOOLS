@@ -322,7 +322,7 @@ upload_file $REMOTE_HOST $REMOTE_DIR $outzip zip
 upload_file $REMOTE_HOST $REMOTE_DIR $OUT_MD5SUM
 
 # Update the OTA
-# update_ota "$Device" "$outzip"
+update_ota "$Device" "$outzip"
 
 # Cleanup
 
