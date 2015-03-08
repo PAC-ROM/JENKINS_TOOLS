@@ -224,7 +224,7 @@ r_z_list = remote_list('zip', remotedir)
 r_m_list = remote_list('md5sum', remotedir)
 r_d_list = remote_list('delta', remotedir)
 
-print('Cecking for unprocessed deleta files...')
+print('Cecking for unprocessed delta files...')
 if r_d_list:
     print('Found delta file(s)! Getting rid of it...')
     for rfile in r_d_list:
