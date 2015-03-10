@@ -7,8 +7,8 @@ fi
 
 # Custom slave script runner
 
-if [ -f $HOME/jenk-bin/pre-user.sh ]; then
-    $HOME/jenk-bin/pre-user.sh
+if [ -f $HOME/pre-user.sh ]; then
+    $HOME/pre-user.sh
 fi
 
 echo "Out - $OUT_DIR_COMMON_BASE - set"
