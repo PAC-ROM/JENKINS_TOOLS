@@ -203,7 +203,9 @@ if [ $needs_run -ne 0 ]; then
     echo "Reseting all repositories..."
     echo ""
 
-    if [[ -n $(repo branch | grep auto) ]]; then
+    # check for local branches left by extras.sh
+    BRANCH_A=$(repo branch | grep auto)
+    if [ ! -z "$BRANCH_A" ]; then
         repo abandon auto
     fi
 
