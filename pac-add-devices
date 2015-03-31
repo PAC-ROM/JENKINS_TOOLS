@@ -109,7 +109,10 @@ def get_device_dependencies(main_manifest, device):
     projects = []
     for dep in deps:
         try:
-            dep_name = dep['account'] + "/" + dep['repository']
+            try:
+                dep_name = dep['account'] + "/" + dep['repository']
+            except:
+                dep_name = dep['repository']
             dep_path = dep['target_path']
             dep_revision = dep['revision']
         except:
@@ -123,9 +126,14 @@ def get_device_dependencies(main_manifest, device):
             print 'ineligible device %s: path %s in main_manifest' % (device, dep_path)
             return []
 
+        try:
+            dep_remote = dep['remote']
+        except:
+            dep_remote = "github"
+
         p = ElementTree.Element("project", attrib = {
                 "path": dep_path,
-                "remote": "github",
+                "remote": dep_remote,
                 "name": dep_name,
                 "revision": dep_revision
             })
