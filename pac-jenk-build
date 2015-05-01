@@ -294,9 +294,9 @@ fi
 
 built_zip=$(ls -t $PROD_OUT_DIR/*.zip | head -1 | xargs -n1 basename)
 
-echo "${bldgrn}$PROD_OUT_DIR/${bldylw}$built_zip${txtrst}"
+echo -e "${bldgrn}$PROD_OUT_DIR/${bldylw}$built_zip${txtrst}"
 
-if [ ! -f "$built_zip" ]; then
+if [ ! -f "$PROD_OUT_DIR/$built_zip" ]; then
     echo -e ""
     echo -e ${red}"Error: cannot find built zip in $built_zip"${txtrst}
     echo -e ""
