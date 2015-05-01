@@ -286,27 +286,15 @@ BUILD_NUMBER=$OLD_BN
 CheckReturn $?
 
 # Find output zip
-echo "Zips"
-
 if [ -z $OUTDIR ]; then
-    echo -e ""
-    echo -e ${cya}"No external out, using default ($OUTDIR)"${txtrst}
-    echo -e ""
-
     PROD_OUT_DIR="$BUILD_TOP/out/target/product/$Device"
 else
-    echo -e ""
-    echo -e ${cya}"External OUTDIR is set ($OUTDIR)"${txtrst}
-    echo -e ""
-
     PROD_OUT_DIR="$OUTDIR/target/product/$Device"
 fi
 
-echo $PROD_OUT_DIR
+built_zip=$(ls -t $PROD_OUT_DIR/*.zip | head -1 | xargs -n1 basename)
 
-built_zip=$(ls -t $PROD_OUT_DIR/*.zip | head -1)
-
-echo "$built_zip"
+echo "${bldgrn}$PROD_OUT_DIR/${bldylw}$built_zip${txtrst}"
 
 if [ ! -f "$built_zip" ]; then
     echo -e ""
