@@ -4,6 +4,10 @@ if [ -f $HOME/.bashrc ]; then
     source $HOME/.bashrc
 fi
 
+log(){
+    t=(date "+%F %T %Z")
+    echo "$t $1" >> ~/.pac_jenk_build
+}
 
 # Custom slave script runner
 
@@ -294,8 +298,6 @@ fi
 
 built_zip=$(ls -t $PROD_OUT_DIR/*.zip | head -1 | xargs -n1 basename)
 
-echo -e "${bldgrn}$PROD_OUT_DIR/${bldylw}$built_zip${txtrst}"
-
 if [ ! -f "$PROD_OUT_DIR/$built_zip" ]; then
     echo -e ""
     echo -e ${red}"Error: cannot find built zip in $built_zip"${txtrst}
@@ -320,19 +322,19 @@ mv "$PROD_OUT_DIR" "$PROD_OUT_DIR.del"
 ionice -c 3 rm -rf "$PROD_OUT_DIR.del" &
 
 # Cleanup the out folder
-echo "Cleaning old logs..."
+log "Cleaning old logs..."
 files=$(find "$OUT_TOP" -type f -mtime +7 ! -name "*.zip")
 for p in $files; do
     f=$(basename $p)
-    echo "Deleting old log: $f"
+    log "Deleting old log: $f"
     rm -f "$p"
 done
 
-echo "Cleaning old ROMs..."
+log "Cleaning old ROMs..."
 files=$(find "$OUT_TOP" -type f -mtime +7 -name "*.zip")
 for p in $files; do
     f=$(basename $p)
-    echo "Deleting old ROM: $f"
+    log "Deleting old ROM: $f"
     rm -f "$p"
 done
 
@@ -346,7 +348,7 @@ if [ -z "$CCACHE_BIG" ]; then
         t=$(stat -c "%Y" "$pathname/.lastused")
         delta=$((now-t))
         if [ "$delta" -ge "$MAX_CCACHE_UNUSED" ]; then
-            echo "Deleting old ccache: $pathname"
+            log "Deleting old ccache: $pathname"
             rm -rf "$pathname"
         fi
     done
