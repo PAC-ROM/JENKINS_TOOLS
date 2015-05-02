@@ -163,10 +163,10 @@ def remove_undersized(ftyp):
     for zip in zip_list:
         if int((zip.get('size'))) < max_zip:
             del_r_file(zip.get('name'))
-            print('%s  deleted ...' % (zip.get('name')))
+            logi('%s  deleted ...' % (zip.get('name')))
             if ftyp == 'zip':
                 del_r_file('%s.md5sum' % (zip.get('name')))
-                print('%s.md5sum  deleted ...' % (zip.get('name')))
+                logi('%s.md5sum  deleted ...' % (zip.get('name')))
 
 def trim_the_list(ftyp):
     the_list = []
@@ -189,12 +189,12 @@ def trim_the_list(ftyp):
     count = 0
     del_count = len(the_list) - max_n_zip
     if del_count > 0:
-        print('We need to make space...')
+        logi('We need to make space...')
         while count < del_count:
             f_date, f_del = the_list[count].split('_', 1)
             del_r_file(f_del)
             del_r_file('%s.md5sum' % (f_del))
-            print('%s  deleted ...' % (f_del))
+            logi('%s  deleted ...' % (f_del))
             count += 1
 
 optargs, argv = getopt.getopt(sys.argv[1:], 'df', ['debug', 'foreground'])
@@ -215,35 +215,35 @@ max_n_zip = 10 #the maximun number of zip files allowed in a nightly folder
 
 # clean remotedir
 # remove undersized uploads
-print('Checking for undersized upload file(s)..')
+logi('Checking for undersized upload file(s)..')
 remove_undersized('zip')
 
 # get the list of what is left
-print('Getting lists of remote files...')
+logi('Getting lists of remote files...')
 r_z_list = remote_list('zip', remotedir)
 r_m_list = remote_list('md5sum', remotedir)
 r_d_list = remote_list('delta', remotedir)
 
-print('Cecking for unprocessed delta files...')
+logi('Cecking for unprocessed delta files...')
 if r_d_list:
-    print('Found delta file(s)! Getting rid of it...')
+    logi('Found delta file(s)! Getting rid of it...')
     for rfile in r_d_list:
         del_r_file(rfile)
-        print('%s deleted.' % (rfile))
+        logi('%s deleted.' % (rfile))
 
-print('Checking for incomplete sets...')
+logi('Checking for incomplete sets...')
 for r_z_file in r_z_list:
     if not ('%s.md5sum' % (r_z_file)) in r_m_list:
-        print('%s.md5sum not found' % (r_z_file))
+        logi('%s.md5sum not found' % (r_z_file))
         del_r_file(r_z_list.pop(r_z_list.index(r_z_file)))
 
 for r_m_file in r_m_list:
     if not r_m_file[:-7] in r_z_list:
-        print('%s not found' % (r_m_file[:-7]))
+        logi('%s not found' % (r_m_file[:-7]))
         del_r_file(r_m_list.pop(r_m_list.index(r_m_file)))
 
 # remove old uploads
-print('Checking for excess baggage..')
+logi('Checking for excess baggage..')
 trim_the_list(r_z_list)
 
 if not os.path.exists(newpath):
