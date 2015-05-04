@@ -276,6 +276,9 @@ else
     echo "Normal built device. Continuing as per usual"
 fi
 
+# Hide ansi art
+export JENK_ENV=1
+
 # Build number
 OLD_BN=$BUILD_NUMBER
 BUILD_NUMBER="eng.$USER.$(date +%Y%m%d.%H%M%S)"
