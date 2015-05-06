@@ -56,7 +56,7 @@ export OUT_BASE=$OUT_TOP/$Version
 mkdir -p "$OUT_BASE"
 
 date_no_time=`date -u +%Y%m%d`
-export BASE_NAME="pac_$Device-lp-$Version-${date_no_time}"
+export BASE_NAME="pac_$Device-lp-mr1-$Version-${date_no_time}"
 export OUT_MD5SUM=$OUT_BASE/$BASE_NAME.zip.md5sum
 export logpath=$OUT_BASE/$BASE_NAME.log
 export outzip=$OUT_BASE/$BASE_NAME.zip
