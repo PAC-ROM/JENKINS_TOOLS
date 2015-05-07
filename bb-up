@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
+
 import os
 import sys
 import getopt
@@ -37,7 +39,7 @@ def daemonize():
 def logx(level, msg):
     nowstr = datetime.datetime.now().ctime()
     if foreground:
-        print "%s: %s: %s" % (nowstr, level, msg)
+        print("%s: %s: %s" % (nowstr, level, msg))
     else:
         f = open(logfile, "a")
         f.write("%s: %s: %s\n" % (nowstr, level, msg))
@@ -205,7 +207,7 @@ for k, v in optargs:
         foreground = True
 
 if len(argv) != 2:
-    print "Usage: bb-up remote-dir local-pathname"
+    print("Usage: bb-up remote-dir local-pathname")
     sys.exit(1)
 
 remotedir = argv[0]
@@ -247,7 +249,7 @@ logi('Checking for excess baggage..')
 trim_the_list(r_z_list)
 
 if not os.path.exists(newpath):
-    print "No such file %s" % (newpath)
+    print("No such file %s" % (newpath))
     sys.exit(1)
 
 if not foreground:
