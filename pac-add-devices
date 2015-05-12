@@ -5,10 +5,19 @@ from __future__ import print_function
 import os
 import sys
 import getopt
-import urllib2
 import json
 import re
 from xml.etree import ElementTree
+
+try:
+  # For python3
+  import urllib.request
+except ImportError:
+  # For python2
+  import imp
+  import urllib2
+  urllib = imp.new_module('urllib')
+  urllib.request = urllib2
 
 # in-place prettyprint formatter
 def indent(elem, level=0):
