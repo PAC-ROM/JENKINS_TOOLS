@@ -105,7 +105,7 @@ def write_manifest(manifest, path):
 
     f = open(path, 'w')
     f.write('<?xml version="1.0" encoding="UTF-8"?>\n')
-    f.write(ElementTree.tostring(manifest))
+    f.write(ElementTree.tostring(manifest)).decode('utf-8')
     f.close()
 
 def get_device_dependencies(main_manifest, device):
