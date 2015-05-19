@@ -246,7 +246,7 @@ for r_m_file in r_m_list:
 
 # remove old uploads
 logi('Checking for excess baggage..')
-trim_the_list(r_z_list)
+trim_the_list('zip')
 
 if not os.path.exists(newpath):
     print("No such file %s" % (newpath))
