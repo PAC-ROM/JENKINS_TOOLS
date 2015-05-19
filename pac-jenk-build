@@ -19,6 +19,11 @@ echo "Out - $OUT_DIR_COMMON_BASE - set"
 
 PATH="$HOME/jenk-bin:$PATH"
 
+# Enable python virtual env
+if [ -f $HOME/venv/bin/activate ]; then
+    source $HOME/venv/bin/activate
+fi
+
 # Read Jenkins config
 export jenkins_pac_conf=$HOME/.jenkins/config
 if [ -f $jenkins_pac_conf ]; then
