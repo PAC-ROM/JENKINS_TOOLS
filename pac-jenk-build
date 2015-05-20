@@ -4,6 +4,9 @@ if [ -f $HOME/.bashrc ]; then
     source $HOME/.bashrc
 fi
 
+# Lets all build in the same time zone
+export TZ="usr/share/zoneinfo/UTC"
+
 log(){
     t=$(date "+%F %T %Z")
     echo "$t $1" >> ~/.pac_jenk_build
