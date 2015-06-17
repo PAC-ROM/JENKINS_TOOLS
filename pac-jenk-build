@@ -220,15 +220,15 @@ if [ $needs_run -ne 0 ]; then
         find ".repo/local_manifests" -type f ! -name "device.xml" -print0 | xargs -0 rm -f
     fi
 
-    repo sync -c "vendor/pac"
-    CheckReturn $?
-    pac-add-devices
-    CheckReturn $?
     worked=0
     if [ $no_reset -eq 0 ]; then
         repo forall -c "git reset --hard HEAD; git clean -q -f"
         worked=$?
     fi
+    repo sync -c "vendor/pac"
+    CheckReturn $?
+    pac-add-devices
+    CheckReturn $?
     repo sync -j8 -c
     CheckReturn $?
 
