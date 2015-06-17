@@ -220,7 +220,7 @@ if [ $needs_run -ne 0 ]; then
         find ".repo/local_manifests" -type f ! -name "device.xml" -print0 | xargs -0 rm -f
     fi
 
-    repo sync -j30 -c "vendor/pac"
+    repo sync -c "vendor/pac"
     CheckReturn $?
     pac-add-devices
     CheckReturn $?
