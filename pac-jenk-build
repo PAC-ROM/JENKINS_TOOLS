@@ -242,7 +242,6 @@ if [ $needs_run -ne 0 ]; then
         CheckReturn $?
     fi
 
-    make clean
     touch "$OUT_TOP/.pre-script"
 
 fi
@@ -250,21 +249,6 @@ fi
 echo ""
 echo "Cleaning the ghosts of building past!"
 echo ""
-
-if [ -f "out/.stamp" ]; then
-    stamp=$(stat -c "%Y" "out/.stamp")
-    delta=$((now-stamp))
-    if [ "$delta" -lt "$MAX_OUT_TIME" ]; then
-        echo "Who ya gonna call?!"
-        rm -rf "out/*"
-        mkdir -p "out"
-        touch "out/.stamp"
-        echo "Ghosts Busters!"
-    fi
-else
-    touch "out/.stamp"
-    echo "Touched the Ghost of Nuked Past"
-fi
 
 # To be sure to be sure
 cd "$BUILD_TOP"
