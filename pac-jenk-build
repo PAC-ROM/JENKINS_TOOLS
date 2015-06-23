@@ -246,10 +246,6 @@ if [ $needs_run -ne 0 ]; then
 
 fi
 
-echo ""
-echo "Cleaning the ghosts of building past!"
-echo ""
-
 # To be sure to be sure
 cd "$BUILD_TOP"
 
@@ -305,11 +301,6 @@ upload_file $REMOTE_HOST $REMOTE_DIR $OUT_MD5SUM
 
 # Update the OTA
 update_ota "$Device" "$outzip"
-
-# Cleanup
-
-mv "$PROD_OUT_DIR" "$PROD_OUT_DIR.del"
-ionice -c 3 rm -rf "$PROD_OUT_DIR.del" &
 
 # Cleanup the out folder
 log "Cleaning old logs..."
