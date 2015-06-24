@@ -270,7 +270,7 @@ export JENK_ENV=1
 OLD_BN=$BUILD_NUMBER
 BUILD_NUMBER="eng.$USER.$(date +%Y%m%d.%H%M%S)"
 # Building
-. build-pac.sh -f $Device
+. build-pac.sh -c2 -f $Device
 CheckReturn $?
 BUILD_NUMBER=$OLD_BN
 CheckReturn $?
