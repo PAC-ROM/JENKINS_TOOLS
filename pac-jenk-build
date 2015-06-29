@@ -135,11 +135,11 @@ upload_file(){
     local ftype="$4"
 
     if [ "$ftype" = "zip" ];then
-        echo "bb up $remote_dir  $local_pathname"
+        echo "bb-up upload $local_pathname"
         bb-up "$remote_dir" "$local_pathname"
     else
-        echo "ncftpput -bb -f ~/pacman $remote_dir $local_pathname"
-    ncftpput -bb -f ~/pacman "$remote_dir" "$local_pathname"
+        echo "direct upload $local_pathname"
+        ncftpput -bb -f ~/pacman "$remote_dir" "$local_pathname"
         batchid=$(pgrep ncftpbatch)
         if [[ -z $batchid ]]; then
             ncftpbatch -d
