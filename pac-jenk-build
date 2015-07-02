@@ -209,6 +209,8 @@ if [ $needs_run -ne 0 ]; then
 
     echo "Reseting all repositories..."
     echo ""
+    echo "Cleaning OUTDIR"
+    make clean &> /dev/null
 
     # check for local branches left by extras.sh
     BRANCH_A=$(repo branch | grep auto)
