@@ -78,7 +78,7 @@ def make_query(m):
 
 def put_file(rdir, path):
     #argv = ['/usr/bin/ncftpput', '-m', 'pacman', rdir, path]
-    argv = ['/usr/bin/ncftpput', '-bb', '-f', '/home/build/pacman', rdir, path]
+    argv = ['ncftpput', '-bb', '-f', '/home/build/pacman', rdir, path]
     subprocess.call(argv)
     processname = 'ncftpbatch'
     tmp = os.popen("ps -Af").read()
@@ -104,7 +104,7 @@ def put_file_delta(rdir, newpath, oldpath):
     deltamd5 = md5_file(deltapath)
 
     # Upload delta file
-    argv = ['/usr/bin/ncftpput', '-m', '-f', '/home/build/pacman', rdir, deltapath]
+    argv = ['ncftpput', '-m', '-f', '/home/build/pacman', rdir, deltapath]
     #argv = ['/usr/bin/ncftpput', '-bb', 'pacman', rdir, deltapath]
     subprocess.call(argv)
     #processname = 'ncftpbatch'
