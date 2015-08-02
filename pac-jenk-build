@@ -25,16 +25,16 @@ PATH="$HOME/jenk-bin:$PATH"
 # Read Jenkins config
 export jenkins_pac_conf=$HOME/.jenkins/config
 if [ -f $jenkins_pac_conf ]; then
-    ccache_root`grep "ccache_root" $jenkins_pac_conf | cut -d'=' -f2`
-    if [ $ccahe_root != 'not_set' ]; then
+    ccache_root=`grep "ccache_root" $jenkins_pac_conf | cut -d'=' -f2`
+    if [ "$ccache_root" != "not_set" ]; then
         export CCACHE_ROOT=$ccache_root
     fi
     ccache_big=`grep "ccache_big" $jenkins_pac_conf | cut -d'=' -f2`
-    if [ $ccahe_big != 'not_set' ]; then
+    if [ "$ccache_big" != "not_set" ]; then
         export CCACHE_BIG=$ccache_big
     fi
     src_dir=`grep "src_dir" $jenkins_pac_conf | cut -d'=' -f2`
-    if [ $src_dir != 'not_set' ]; then
+    if [ "$src_dir" != "not_set" ]; then
         export SRC_DIR=$src_dir
     fi
 fi
