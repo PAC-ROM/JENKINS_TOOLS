@@ -77,16 +77,16 @@ def make_query(m):
     return q
 
 def put_file(rdir, path):
-    argv = ['/usr/bin/ncftpput', '-m', '/home/build/pacman', rdir, path]
-    #argv = ['ncftpput', '-bb', '-f', '/home/build/pacman', rdir, path]
+    #argv = ['/usr/bin/ncftpput', '-m', 'pacman', rdir, path]
+    argv = ['ncftpput', '-bb', '-f', '/home/build/pacman', rdir, path]
     subprocess.call(argv)
-    #processname = 'ncftpbatch'
-    #tmp = os.popen("ps -Af").read()
-    #batchid = tmp.count(processname)
-    #if batchid == 0:
-    #    cmd = "ncftpbatch -d"
-    #    subprocess.call(cmd, shell=True)
-    #    time.sleep(5)
+    processname = 'ncftpbatch'
+    tmp = os.popen("ps -Af").read()
+    batchid = tmp.count(processname)
+    if batchid == 0:
+        cmd = "ncftpbatch -d"
+        subprocess.call(cmd, shell=True)
+        time.sleep(5)
 
 def put_file_delta(rdir, newpath, oldpath):
     deltapath = newpath.replace('.zip', '.delta') # XXX
