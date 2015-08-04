@@ -145,7 +145,7 @@ upload_file(){
 
     if [ "$ftype" = "zip" ];then
         echo "bb-up upload $local_pathname"
-        nohup bb-up "$remote_dir" "$local_pathname" &
+        bb-up "$remote_dir" "$local_pathname"
     else
         echo "direct upload $local_pathname"
         ncftpput -bb -f ~/pacman "$remote_dir" "$local_pathname"

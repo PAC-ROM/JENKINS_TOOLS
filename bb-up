@@ -106,14 +106,7 @@ def put_file_delta(rdir, newpath, oldpath):
 
     # Upload delta file
     argv = ['ncftpput', '-m', '-f', '/home/build/pacman', rdir, deltapath]
-    #argv = ['/usr/bin/ncftpput', '-bb', 'pacman', rdir, deltapath]
     subprocess.call(argv)
-    #processname = 'ncftpbatch'
-    #tmp = os.popen("ps -Af").read()
-    #batchid = tmp.count(processname)
-    #if batchid == 0:
-        #cmd = "ncftpbatch -d"
-        #subprocess.call(cmd, shell=True)
 
     # Construct remote file
     rdir2=rdir.replace('public_html/','')
@@ -280,7 +273,6 @@ if not os.path.exists(oldpath):
     logi("yesterdays build not found on bot, fall back to normal upload")
     put_file(remotedir, newpath)
     put_file(remotedir, newmd5)
-    logi(os.listdir("/home/build/.ncftp/spool"))
     sys.exit(0)
 
 # check for oldfile on the server
@@ -290,7 +282,6 @@ if not subprocess.call(cmd, shell=True) == 0:
     logi("yesterdays build not found on server, fall back to normal upload")
     put_file(remotedir, newpath)
     put_file(remotedir, newmd5)
-    logi(os.listdir("/home/build/.ncftp/spool"))
     sys.exit(0)
 
 logi("attempt to put file via delta")
@@ -298,5 +289,4 @@ if not put_file_delta(remotedir, newpath, oldpath):
     logi("put file via delta failed, fall back to normal upload")
     put_file(remotedir, newpath)
     put_file(remotedir, newmd5)
-    logi(os.listdir("/home/build/.ncftp/spool"))
     sys.exit(0)
