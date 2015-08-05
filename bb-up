@@ -120,7 +120,7 @@ def put_file_delta(rdir, newpath, oldpath):
         'outputmd5' : newmd5 } )
     argv = ['/usr/bin/wget', '-q', '-O', '-',
         '--post-data=%s' % (query),
-        'https://s.basketbuild.com/uploads/devs/pacman/mkdelta.php' ]
+        'https://s.%s/uploads/devs/pacman/mkdelta.php' % (host)]
     child = subprocess.Popen(argv, stdin=None, stdout=subprocess.PIPE, stderr=None)
     out, err = child.communicate()
     rc = False
@@ -136,18 +136,18 @@ def put_file_delta(rdir, newpath, oldpath):
 
 def remote_list(ftyp, rdir):
     the_list = []
-    cmd = "ncftpls -f /home/build/pacman -1 -i '*%s' ftp://basketbuild.com/./%s/" % (ftyp, rdir)
+    cmd = "ncftpls -f %s -1 -i '*%s' ftp://%s/./%s/" % (host_file, ftyp, host, rdir)
     r_list = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
     for line in iter(r_list.stdout.readline, ''):
         the_list.append(line.rstrip('\n'))
     return the_list
 
 def del_r_file(f_del):
-    cmd = "ncftpls -f /home/build/pacman -Z '-W rm %s/%s' ftp://basketbuild.com/./%s/" % (remotedir, f_del, remotedir)
+    cmd = "ncftpls -f %s -Z '-W rm %s/%s' ftp://%s/./%s/" % (host_file, remotedir, f_del, host, remotedir)
     subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
 
 def remove_undersized(ftyp):
-    cmd = "ncftpls -f /home/build/pacman '-x l *%s' ftp://basketbuild.com/./%s/" % (ftyp, remotedir)
+    cmd = "ncftpls -f %s '-x l *%s' ftp://%s/./%s/" % (host_file, ftyp, host, remotedir)
     get_remote_list = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
     stdout, stderr = get_remote_list.communicate()
     zip_list = csv.DictReader(stdout.decode('ascii').splitlines(),
@@ -166,7 +166,7 @@ def remove_undersized(ftyp):
 
 def trim_the_list(ftyp):
     the_list = []
-    cmd = "ncftpls -f /home/build/pacman -m '-x l *%s' ftp://basketbuild.com/./%s/" % (ftyp, remotedir)
+    cmd = "ncftpls -f %s -m '-x l *%s' ftp://%s/./%s/" % (host_file, ftyp, host, remotedir)
     get_remote_list = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
     stdout, stderr = get_remote_list.communicate()
     f_list = csv.DictReader(stdout.decode('ascii').splitlines(),
@@ -209,6 +209,13 @@ newpath = argv[1]
 newmd5 = newpath + '.md5sum'
 max_zip = 185000000 # the trigger to indicate the zip is undersized and may be from a broken upload
 max_n_zip = 10 #the maximun number of zip files allowed in a nightly folder
+
+# find the host
+host_file = '/home/build/pacman'
+lines = open( host_file, "r" ).readlines()
+for line in lines:
+    if re.search( "host", line ):
+        title, host = line.split(' ', 1)
 
 # clean remotedir
 # remove undersized uploads
@@ -277,7 +284,7 @@ if not os.path.exists(oldpath):
 
 # check for oldfile on the server
 roldfile = newfile.replace(newdatestr, olddatestr)
-cmd = "ncftpls -f /home/build/pacman -1 -i '%s' ftp://basketbuild.com/./%s/" % (roldfile, remotedir)
+cmd = "ncftpls -f %s -1 -i '%s' ftp://%s/./%s/" % (host_file, roldfile, host, remotedir)
 if not subprocess.call(cmd, shell=True) == 0:
     logi("yesterdays build not found on server, fall back to normal upload")
     put_file(remotedir, newpath)
