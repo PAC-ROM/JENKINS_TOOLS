@@ -78,7 +78,7 @@ def make_query(m):
 
 def put_file(rdir, path):
     #argv = ['/usr/bin/ncftpput', '-m', 'pacman', rdir, path]
-    argv = ['ncftpput', '-bb', '-f', '/home/build/pacman', '-T', '.tmp-', rdir, path]
+    argv = ['ncftpput', '-bb', '-f', '/home/build/pacman', rdir, path]
     subprocess.call(argv)
     processname = 'ncftpbatch'
     tmp = os.popen("ps -Af").read()
