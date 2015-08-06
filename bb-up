@@ -216,6 +216,7 @@ lines = open( host_file, "r" ).readlines()
 for line in lines:
     if re.search( "host", line ):
         title, host = line.split(' ', 1)
+        host = host.rstrip('\n')
 
 # clean remotedir
 # remove undersized uploads
