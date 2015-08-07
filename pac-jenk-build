@@ -71,7 +71,7 @@ export logpath=$OUT_BASE/$BASE_NAME.log
 export outzip=$OUT_BASE/$BASE_NAME.zip
 
 REMOTE_DIR=$Device/$Version
-REMOTE_HOST="pacman"
+REMOTE_HOST=$Host
 REMOTE_DOWNLOAD_HOST="pacman.basketbuild.com"
 
 # JAVA_HOME
@@ -144,11 +144,11 @@ upload_file(){
     local ftype="$4"
 
     if [ "$ftype" = "zip" ];then
-        echo "bb-up upload $local_pathname"
-        bb-up "$remote_dir" "$local_pathname"
+        echo "pac-up upload $local_pathname" "$remote_host"
+        pac-up "$remote_dir" "$local_pathname" "$remote_host"
     else
         echo "direct upload $local_pathname"
-        ncftpput -bb -f ~/pacman "$remote_dir" "$local_pathname"
+        ncftpput -bb -f ~/pacman "$remote_dir" "$local_pathname" "remote_host"
         batchid=$(pgrep ncftpbatch)
         if [[ -z $batchid ]]; then
             ncftpbatch -d

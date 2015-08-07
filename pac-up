@@ -15,7 +15,7 @@ import csv
 
 debug_level = 0
 foreground = False
-logfile = "%s/.bb-up" % (os.environ['HOME'])
+logfile = "%s/.pac-up" % (os.environ['HOME'])
 
 def daemonize():
     pid = os.fork()
@@ -200,18 +200,19 @@ for k, v in optargs:
     if k in ('-f', '--foreground'):
         foreground = True
 
-if len(argv) != 2:
-    print("Usage: bb-up remote-dir local-pathname")
+if len(argv) != 3:
+    print("Usage: pac-up remote-dir local-pathname host-file")
     sys.exit(1)
 
 remotedir = argv[0]
 newpath = argv[1]
+u_host = argv[2]
 newmd5 = newpath + '.md5sum'
 max_zip = 185000000 # the trigger to indicate the zip is undersized and may be from a broken upload
 max_n_zip = 10 #the maximun number of zip files allowed in a nightly folder
 
 # find the host
-host_file = '/home/build/pacman'
+host_file = ('/home/build/.jenkins/%s' % (u_host))
 lines = open( host_file, "r" ).readlines()
 for line in lines:
     if re.search( "host", line ):
