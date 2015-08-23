@@ -202,7 +202,7 @@ if [ $needs_run -ne 0 ]; then
     make clean &> /dev/null
 
     # check for local branches left by extras.sh
-    BRANCH_A=$(repo branch | grep auto)
+    BRANCH_A=$(repo branch | grep extras)
     if [ ! -z "$BRANCH_A" ]; then
         repo abandon exras
     fi
