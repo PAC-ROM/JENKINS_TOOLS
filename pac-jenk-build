@@ -204,7 +204,7 @@ if [ $needs_run -ne 0 ]; then
     # check for local branches left by extras.sh
     BRANCH_A=$(repo branch | grep auto)
     if [ ! -z "$BRANCH_A" ]; then
-        repo abandon auto
+        repo abandon exras
     fi
 
     if [ -d ".repo/local_manifests" ]; then
