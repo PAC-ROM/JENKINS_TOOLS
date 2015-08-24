@@ -181,7 +181,7 @@ def get_device_list():
 
 def project_name_priority(name):
     name_prio = {
-            'pac-man/': 3,
+            'pac-rom/': 3,
             'pac-' : 2,
             'themuppets/': 1,
         }
