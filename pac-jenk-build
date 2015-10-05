@@ -122,18 +122,12 @@ update_ota()
     local device="$1"
     local pathname="$2"
     local filename
-    local md5
     local dlurl
-    local otatype
-    local otaver
     filename=$(basename $pathname)
-    md5=$(md5sum "$pathname" | cut -c-32)
-    dlurl="http://$REMOTE_DOWNLOAD_HOST/download.php?file=main/$device/$Type/$filename"
-    otatype=$Type
-    otaver=${filename%.*}
-    pac-push-ota "$otatype" "$device" "$otaver" "$md5" "$dlurl"
+    dlurl="$filename"
+    pac-push-ota "$Host" "$device" "$Version" "$BUILD_NUMBER" "$dlurl"
     } &> /dev/null
-    echo "Sent OTA $device $filename MD5 $md5 OTA"
+    echo "Sent OTA $device with $dlurl to $Host"
 }
 
 

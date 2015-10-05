@@ -1,12 +1,19 @@
 #!/bin/sh
 
-OTA_URL="http://pac-rom.com/ota/ota_PAC.php"
+OTA_URL="http://downloads.pac-rom.com/index.php?build-update=true"
 OTA_PASS=`grep "ota_pass" /home/build/.jenkins/config | cut -d'=' -f2`
 
-otatype="$1"
+host="$1"
 device="$2"
 version="$3"
-md5="$4"
+blid="$4"
 dlurl="$5"
 
-wget -O /dev/null "$OTA_URL?pass=$OTA_PASS&type=$otatype&device=$device&otaname=$version&md5=$md5&dlurl=$dlurl"
+#    http://downloads.pac-rom.com/index.php?build-update=true&
+#device=$device& 
+#dl-url=$dlurl& 
+#build-id=$blid& 
+#host=$host& 
+#version=$version
+
+wget -O /dev/null "$OTA_URL&pass=$OTA_PASS&device=$device&dl-url=$dlurl&build-id=$blid&host=$host&version=$version"
