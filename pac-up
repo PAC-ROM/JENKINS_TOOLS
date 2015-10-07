@@ -77,15 +77,23 @@ def make_query(m):
     return q
 
 def put_file(rdir, path):
-    argv = ['ncftpput', '-bb', '-f', host_file, rdir, path]
+
+    #setup conf
+    argv = [r'sed -i "/^--url/ s|\/\"|/{0}\"|g" {1}'.format(rdir, curl_conf_file)]
     subprocess.call(argv)
-    processname = 'ncftpbatch'
-    tmp = os.popen("ps -Af").read()
-    batchid = tmp.count(processname)
-    if batchid == 0:
-        cmd = "ncftpbatch -d"
-        subprocess.call(cmd, shell=True)
-        time.sleep(5)
+
+    #upload
+    argv = ['curl', '-K ', curl_conf_file, '-T', path]
+    returncd = subprocess.call(argv)
+
+    #fix conf
+    argv = [r'sed -i "/^--url/ s|/{0}\"|/\"|g" {1}'.format(remotedir, curl_conf_file)]
+    subprocess.call(argv)
+
+    #update dl link if the upload worked
+    if (returncd == 0){
+        #TODO:check return value of the curl
+    }
 
 def put_file_delta(rdir, newpath, oldpath):
     deltapath = newpath.replace('.zip', '.delta') # XXX
@@ -103,8 +111,16 @@ def put_file_delta(rdir, newpath, oldpath):
     oldmd5 = md5_file(oldpath)
     deltamd5 = md5_file(deltapath)
 
-    # Upload delta file
-    argv = ['ncftpput', '-m', '-f', host_file, rdir, path]
+    #setup conf
+    argv = [r'sed -i "/^--url/ s|\/\"|/{0}\"|g" {1}'.format(rdir, curl_conf_file)]
+    subprocess.call(argv)
+
+    #upload
+    argv = ['curl', '-K ', curl_conf_file, '-T', deltapath]
+    returncd = subprocess.call(argv)
+
+    #fix conf
+    argv = [r'sed -i "/^--url/ s|/{0}\"|/\"|g" {1}'.format(remotedir, curl_conf_file)]
     subprocess.call(argv)
 
     # Construct remote file
@@ -209,6 +225,9 @@ u_host = argv[2]
 newmd5 = newpath + '.md5sum'
 max_zip = 185000000 # the trigger to indicate the zip is undersized and may be from a broken upload
 max_n_zip = 10 #the maximun number of zip files allowed in a nightly folder
+
+#curl Config
+curl_conf_file = '/home/build/.jenkins/curl{0}'.format(u_host)
 
 # find the host
 host_file = ('/home/build/.jenkins/%s' % (u_host))
