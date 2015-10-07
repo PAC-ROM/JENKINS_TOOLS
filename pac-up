@@ -91,9 +91,9 @@ def put_file(rdir, path):
     subprocess.call(argv)
 
     #update dl link if the upload worked
-    if (returncd == 0){
+    if returncd == 0:
         #TODO:check return value of the curl
-    }
+        pass
 
 def put_file_delta(rdir, newpath, oldpath):
     deltapath = newpath.replace('.zip', '.delta') # XXX
