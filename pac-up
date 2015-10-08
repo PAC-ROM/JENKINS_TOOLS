@@ -80,15 +80,15 @@ def put_file(rdir, path):
 
     #setup conf
     argv = [r'sed -i "/^--url/ s|\/\"|/{0}\"|g" {1}'.format(rdir, curl_conf_file)]
-    subprocess.call(argv)
+    subprocess.call(argv, shell=True)
 
     #upload
-    argv = ['curl', '-K ', curl_conf_file, '-T', path]
-    returncd = subprocess.call(argv)
+    argv = [r'curl -K {0}/ -T {1}'.format(curl_conf_file, path)]
+    returncd = subprocess.call(argv, shell=True)
 
     #fix conf
     argv = [r'sed -i "/^--url/ s|/{0}\"|/\"|g" {1}'.format(remotedir, curl_conf_file)]
-    subprocess.call(argv)
+    subprocess.call(argv, shell=True)
 
     #update dl link if the upload worked
     if returncd == 0:
