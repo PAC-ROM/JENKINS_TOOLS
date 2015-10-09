@@ -75,23 +75,31 @@ def make_query(m):
             q += "&"
         q += "%s=%s" % (k, urlencode(str(v)))
     return q
-
-def put_file(rdir, path):
-
+    
+def curl_file(rdir, path):
     #setup conf
-    argv = [r'sed -i "/^--url/ s|\/\"|/{0}/\"|g" {1}'.format(rdir, curl_conf_file)]
+    argv = [r'sed "/^--url/ s|\/\"|/{0}/\"|g" {1} > {2}.curlconf'.format(rdir, curl_conf_file, os.path.basename(path))]
     subprocess.call(argv, shell=True)
 
     #upload
-    argv = [r'curl -K {0} -T {1}'.format(curl_conf_file, path)]
+    argv = [r'curl -K {0}.curlconf -T {1}'.format(os.path.basename(path), path)]
     returncd = subprocess.call(argv, shell=True)
+    logi('cURL return code {0} for {1}'.format(returnrc, path))
 
     #fix conf
-    argv = [r'sed -i "/^--url/ s|/{0}/\"|/\"|g" {1}'.format(remotedir, curl_conf_file)]
+    argv = [r'rm {0}.curlconf'.format(os.path.basename(path))]
     subprocess.call(argv, shell=True)
+
+    return returncd
+
+def put_file(rdir, path):
+
+    returncd = curl_file(rdir, path)
 
     #update dl link if the upload worked
     if returncd == 0:
+        logi('We should update hte DLM {0} {1}'.format(rdir, os.path.basename(path)))
+
         #TODO:check return value of the curl
         pass
 
@@ -111,17 +119,7 @@ def put_file_delta(rdir, newpath, oldpath):
     oldmd5 = md5_file(oldpath)
     deltamd5 = md5_file(deltapath)
 
-    #setup conf
-    argv = [r'sed -i "/^--url/ s|\/\"|/{0}/\"|g" {1}'.format(rdir, curl_conf_file)]
-    subprocess.call(argv, shell=True)
-
-    #upload
-    argv = [r'curl -K {0} -T {1}'.format(curl_conf_file, path)]
-    returncd = subprocess.call(argv, shell=True)
-
-    #fix conf
-    argv = [r'sed -i "/^--url/ s|/{0}/\"|/\"|g" {1}'.format(remotedir, curl_conf_file)]
-    subprocess.call(argv, shell=True)
+    curl_file(rdir, deltapath)
 
     # Construct remote file
     rdir2=rdir.replace('public_html/','')
