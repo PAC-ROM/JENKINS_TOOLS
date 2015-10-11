@@ -82,7 +82,7 @@ def curl_file(rdir, path):
     subprocess.call(argv, shell=True)
 
     #upload
-    argv = [r'curl -K {0}.curlconf -T {1}'.format(os.path.basename(path), path)]
+    argv = [r'curl -K {0}.curlconf -T {1} 2>&1 | tee ~/.jenkins/curllogs/upload-{0}.log'.format(os.path.basename(path), path)]
     returncd = subprocess.call(argv, shell=True)
     logi('cURL return code {0} for {1}'.format(returnrc, path))
 
