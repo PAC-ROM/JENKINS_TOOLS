@@ -12,6 +12,7 @@ import subprocess
 import pipes
 import md5
 import csv
+import ftplib
 
 debug_level = 0
 foreground = False
@@ -75,7 +76,7 @@ def make_query(m):
             q += "&"
         q += "%s=%s" % (k, urlencode(str(v)))
     return q
-    
+
 def curl_file(rdir, path):
     #setup conf
     argv = [r'sed "/^--url/ s|\/\"|/{0}/\"|g" {1} > {2}.curlconf'.format(rdir, curl_conf_file, os.path.basename(path))]
@@ -91,6 +92,30 @@ def curl_file(rdir, path):
     subprocess.call(argv, shell=True)
 
     return returncd
+
+def get_remote_list(line):
+    data, _, name = line.partition('; ')
+    f_time = ''
+    f_size = ''
+    if name.endswith('delta'):
+        logi('Found delta file: {0}'.format(name))
+        delete_list.append(name)
+    fields = data.split(';')
+    for field in fields:
+        field_name, _, field_value= field.partition('=')
+        if field_name == 'size':
+            f_size = field_value
+        if field_name == 'modify':
+            f_time = field_value
+    if not f_time == '':
+        if name.endswith('zip'):
+            if int(f_size) < max_zip:
+                logi('Found a small zip: {0}'.format(name))
+                delete_list.append(name)
+            else:
+                zip_list.append(f_time + '_' + f_size + '_' + name)
+        if name.endswith('md5sum'):
+            md5_list.append(f_time + '_' + f_size + '_' + name)
 
 def put_file(rdir, path):
 
@@ -133,7 +158,7 @@ def put_file_delta(rdir, newpath, oldpath):
         'outputmd5' : newmd5 } )
     argv = ['/usr/bin/wget', '-q', '-O', '-',
         '--post-data=%s' % (query),
-        'https://s.%s/uploads/devs/pacman/mkdelta.php' % (host)]
+        'https://s.%s/uploads/devs/pacman/mkdelta.php' % (ftp_host)]
     child = subprocess.Popen(argv, stdin=None, stdout=subprocess.PIPE, stderr=None)
     out, err = child.communicate()
     rc = False
@@ -143,68 +168,12 @@ def put_file_delta(rdir, newpath, oldpath):
                 rc = True
 
     # we are done here, remove the deltafile
-    del_r_file(deltafile)
+    ftp = ftplib.FTP(ftp_host, ftp_user, ftp_pass)
+    ftp.cwd(remotedir)
+    response = ftp.delete(deltafile)
+    ftp.quit()
 
     return rc
-
-def remote_list(ftyp, rdir):
-    the_list = []
-    cmd = "ncftpls -f %s -1 -i '*%s' ftp://%s/./%s/" % (host_file, ftyp, host, rdir)
-    r_list = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-    for line in iter(r_list.stdout.readline, ''):
-        the_list.append(line.rstrip('\n'))
-    return the_list
-
-def del_r_file(f_del):
-    cmd = "ncftpls -f %s -Z '-W rm %s/%s' ftp://%s/./%s/" % (host_file, remotedir, f_del, host, remotedir)
-    subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-
-def remove_undersized(ftyp):
-    cmd = "ncftpls -f %s '-x l *%s' ftp://%s/./%s/" % (host_file, ftyp, host, remotedir)
-    get_remote_list = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-    stdout, stderr = get_remote_list.communicate()
-    zip_list = csv.DictReader(stdout.decode('ascii').splitlines(),
-                            delimiter=' ', skipinitialspace=True,
-                            fieldnames=['permissions', 'type',
-                                        'owner', 'group', 'size',
-                                        'month', 'date', 'time', 'name'])
-
-    for zip in zip_list:
-        if int((zip.get('size'))) < max_zip:
-            del_r_file(zip.get('name'))
-            logi('%s  deleted ...' % (zip.get('name')))
-            if ftyp == 'zip':
-                del_r_file('%s.md5sum' % (zip.get('name')))
-                logi('%s.md5sum  deleted ...' % (zip.get('name')))
-
-def trim_the_list(ftyp):
-    the_list = []
-    cmd = "ncftpls -f %s -m '-x l *%s' ftp://%s/./%s/" % (host_file, ftyp, host, remotedir)
-    get_remote_list = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-    stdout, stderr = get_remote_list.communicate()
-    f_list = csv.DictReader(stdout.decode('ascii').splitlines(),
-                            delimiter=';', skipinitialspace=True,
-                            fieldnames=['modify', 'perm',
-                                        'size', 'type', 'UNIX.group',
-                                        'UNIX.mode', 'UNIX.owner', 'name'])
-    for zip in f_list:
-        if str(zip.get('name')).endswith('md5sum'):
-            continue
-        if not str(zip.get('type')) == 'type=file':
-            continue
-        m_name, m_time = zip.get('modify').split('=', 1)
-        the_list.append(m_time + '_' + zip.get('name'))
-    the_list = sorted(the_list)
-    count = 0
-    del_count = len(the_list) - max_n_zip
-    if del_count > 0:
-        logi('We need to make space...')
-        while count < del_count:
-            f_date, f_del = the_list[count].split('_', 1)
-            del_r_file(f_del)
-            del_r_file('%s.md5sum' % (f_del))
-            logi('%s  deleted ...' % (f_del))
-            count += 1
 
 optargs, argv = getopt.getopt(sys.argv[1:], 'df', ['debug', 'foreground'])
 for k, v in optargs:
@@ -223,50 +192,90 @@ u_host = argv[2]
 newmd5 = newpath + '.md5sum'
 max_zip = 185000000 # the trigger to indicate the zip is undersized and may be from a broken upload
 max_n_zip = 10 #the maximun number of zip files allowed in a nightly folder
+md5_list = []
+zip_list = []
+delete_list = []
 
 #curl Config
 curl_conf_file = '/home/build/.jenkins/curl{0}'.format(u_host)
 
-# find the host
+#parse the host file
 host_file = ('/home/build/.jenkins/%s' % (u_host))
 lines = open( host_file, "r" ).readlines()
 for line in lines:
     if re.search( "host", line ):
-        title, host = line.split(' ', 1)
-        host = host.rstrip('\n')
+        title, ftp_host = line.split(' ', 1)
+        ftp_host = ftp_host.rstrip('\n')
+    if re.search( "user", line ):
+        title, ftp_user = line.split(' ', 1)
+        ftp_user = ftp_user.rstrip('\n')
+    if re.search( "pass", line ):
+        title, ftp_pass = line.split(' ', 1)
+        ftp_pass = ftp_pass.rstrip('\n')
 
-# clean remotedir
-# remove undersized uploads
-logi('Checking for undersized upload file(s)..')
-remove_undersized('zip')
+#ftp login
+ftp = ftplib.FTP(ftp_host, ftp_user, ftp_pass)
+ftp.cwd(remotedir)
 
-# get the list of what is left
-logi('Getting lists of remote files...')
-r_z_list = remote_list('zip', remotedir)
-r_m_list = remote_list('md5sum', remotedir)
-r_d_list = remote_list('delta', remotedir)
+#list remote files
+ftp.retrlines('MLSD', get_remote_list)
 
-logi('Cecking for unprocessed delta files...')
-if r_d_list:
-    logi('Found delta file(s)! Getting rid of it...')
-    for rfile in r_d_list:
-        del_r_file(rfile)
-        logi('%s deleted.' % (rfile))
+#add more garbage to delete list
+if zip_list:
+    zip_list = sorted(zip_list)
 
-logi('Checking for incomplete sets...')
-for r_z_file in r_z_list:
-    if not ('%s.md5sum' % (r_z_file)) in r_m_list:
-        logi('%s.md5sum not found' % (r_z_file))
-        del_r_file(r_z_list.pop(r_z_list.index(r_z_file)))
+    #remove missmatched files
+    garbage_list = []
+    for z_file in zip_list:
+        f_date, f_size, f_name = z_file.split("_", 2)
+        if not any(z_name in z for z in md5_list):
+            list_index = zip_list.index(z_file)
+            garbage_list.append(list_index)
+            logi('no mate for {0}'.format(z_file))
+            delete_list.append(f_name)
+    if garbage_list:
+        garbage_list.sort(reverse=True)
+        for i in garbage_list:
+            zip_list.pop(i)
 
-for r_m_file in r_m_list:
-    if not r_m_file[:-7] in r_z_list:
-        logi('%s not found' % (r_m_file[:-7]))
-        del_r_file(r_m_list.pop(r_m_list.index(r_m_file)))
+    garbage_list = []
+    for m_file in md5_list:
+        f_date, f_size, f_name = m_file.split("_", 2)
+        if not any(m_name[:7] in m for m in zip_list):
+            list_index = md5_list.index(m_file)
+            garbage_list.append(list_index)
+            logi('no mate for {0}'.format(m_file))
+            delete_list.append(f_name)
+    if garbage_list:
+        garbage_list.sort(reverse=True)
+        for i in garbage_list:
+            md5_list.pop(i)
 
-# remove old uploads
-logi('Checking for excess baggage..')
-trim_the_list('zip')
+    #remove excess
+    if len(zip_list) > max_n_zip:
+        excess = len(zip_list) - max_n_zip
+        if excess == 1:
+            garbage = zip_list.pop(0)
+            f_date, f_size, f_name = garbage.split("_", 2)
+            logi('let us remove excess file {0}'.format(f_name))
+            delete_list.append(f_name)
+            delete_list.append(f_name + '.md5sum')
+        else:
+            for pop_it in range (0, excess):
+                garbage = zip_list.pop(0)
+                f_date, f_size, f_name = garbage.split("_", 2)
+                logi('let us remove excess file {0}'.format(f_name))
+                delete_list.append(f_name)
+                delete_list.append(f_name + '.md5sum')
+
+#ftp delete
+if delete_list:
+    for garbage in delete_list:
+        logi('Removing obsolete file: {0}'.format(garbage))
+        response = ftp.delete(garbage)
+
+#cleaning done
+ftp.quit()
 
 if not os.path.exists(newpath):
     print("No such file %s" % (newpath))
@@ -302,11 +311,17 @@ if not os.path.exists(oldpath):
 
 # check for oldfile on the server
 roldfile = newfile.replace(newdatestr, olddatestr)
-cmd = "ncftpls -f %s -1 -i '%s' ftp://%s/./%s/" % (host_file, roldfile, host, remotedir)
-if not subprocess.call(cmd, shell=True) == 0:
+ftp = ftplib.FTP(ftp_host, ftp_user, ftp_pass)
+ftp.cwd(remotedir)
+try:
+    ftp.voidcmd('TYPE I')
+    response = ftp.size(roldfile)
+    ftp.quit()
+except:
     logi("yesterdays build not found on server, fall back to normal upload")
     put_file(remotedir, newpath)
     put_file(remotedir, newmd5)
+    ftp.quit()
     sys.exit(0)
 
 logi("attempt to put file via delta")
