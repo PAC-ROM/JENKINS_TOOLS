@@ -12,7 +12,6 @@ import subprocess
 import pipes
 import md5
 import csv
-import ftplib
 
 debug_level = 0
 foreground = False
@@ -93,29 +92,45 @@ def curl_file(rdir, path):
 
     return returncd
 
-def get_remote_list(line):
-    data, _, name = line.partition('; ')
-    f_time = ''
-    f_size = ''
-    if name.endswith('delta'):
-        logi('Found delta file: {0}'.format(name))
-        delete_list.append(name)
-    fields = data.split(';')
-    for field in fields:
-        field_name, _, field_value= field.partition('=')
-        if field_name == 'size':
-            f_size = field_value
-        if field_name == 'modify':
-            f_time = field_value
-    if not f_time == '':
-        if name.endswith('zip'):
-            if int(f_size) < max_zip:
-                logi('Found a small zip: {0}'.format(name))
-                delete_list.append(name)
-            else:
-                zip_list.append(f_time + '_' + f_size + '_' + name)
-        if name.endswith('md5sum'):
-            md5_list.append(f_time + '_' + f_size + '_' + name)
+#get host file list and divvy up
+def get_remote_list():
+    #setup conf
+    argv = [r'sed "/^--url/ s|\/\"|/{0}/\"|g" {1} > {2}'.format(remotedir, curl_conf_file, list_conf_file)]
+    subprocess.call(argv, shell=True)
+    argv = [r'sed -i "/verbose/d" {0}'.format(list_conf_file)]
+    subprocess.call(argv, shell=True)
+    argv = [r'sed -i "/write-out/d" {0}'.format(list_conf_file)]
+    subprocess.call(argv, shell=True)
+
+    #list the files
+    argv = [r'curl -K {0} -X "MLSD"'.format(list_conf_file)]
+    returncd = subprocess.Popen(argv, shell=True, stdout=subprocess.PIPE)
+    #divvy up
+    for line in iter(returncd.stdout.readline, ''):
+        data, _, name = line.partition('; ')
+        name = name[:-1]
+        f_time = ''
+        f_size = ''
+        if name.endswith('delta'):
+            logi('Found delta file: {0}'.format(name))
+            delete_list.append(name)
+            continue
+        fields = data.split(';')
+        for field in fields:
+            field_name, _, field_value= field.partition('=')
+            if field_name == 'size':
+                f_size = field_value
+            if field_name == 'modify':
+                f_time = field_value
+        if not f_time == '':
+            if name.endswith('zip'):
+                if int(f_size) < max_zip:
+                    logi('Found a small zip: {0}'.format(name))
+                    delete_list.append(name)
+                else:
+                    zip_list.append(f_time + '_' + f_size + '_' + name)
+            if name.endswith('md5sum'):
+                md5_list.append(f_time + '_' + f_size + '_' + name)
 
 def put_file(rdir, path):
 
@@ -195,9 +210,11 @@ max_n_zip = 10 #the maximun number of zip files allowed in a nightly folder
 md5_list = []
 zip_list = []
 delete_list = []
+newfile = os.path.basename(newpath)
 
 #curl Config
 curl_conf_file = '/home/build/.jenkins/curl{0}'.format(u_host)
+list_conf_file = '{0}.{1}'.format(curl_conf_file, newfile)
 
 #parse the host file
 host_file = ('/home/build/.jenkins/%s' % (u_host))
@@ -213,22 +230,16 @@ for line in lines:
         title, ftp_pass = line.split(' ', 1)
         ftp_pass = ftp_pass.rstrip('\n')
 
-#ftp login
-ftp = ftplib.FTP(ftp_host, ftp_user, ftp_pass)
-ftp.cwd(remotedir)
-
-#list remote files
-ftp.retrlines('MLSD', get_remote_list)
-
+##-- clean deadwood from the host --##
+make_lists = get_remote_list()
 #add more garbage to delete list
 if zip_list:
     zip_list = sorted(zip_list)
-
-    #remove missmatched files
+    #remove missmatched zip files
     garbage_list = []
     for z_file in zip_list:
         f_date, f_size, f_name = z_file.split("_", 2)
-        if not any(z_name in z for z in md5_list):
+        if not any(f_name in z for z in md5_list):
             list_index = zip_list.index(z_file)
             garbage_list.append(list_index)
             logi('no mate for {0}'.format(z_file))
@@ -237,11 +248,11 @@ if zip_list:
         garbage_list.sort(reverse=True)
         for i in garbage_list:
             zip_list.pop(i)
-
+    #remove missmatched md5 files
     garbage_list = []
     for m_file in md5_list:
         f_date, f_size, f_name = m_file.split("_", 2)
-        if not any(m_name[:7] in m for m in zip_list):
+        if not any(f_name[:7] in m for m in zip_list):
             list_index = md5_list.index(m_file)
             garbage_list.append(list_index)
             logi('no mate for {0}'.format(m_file))
@@ -250,32 +261,26 @@ if zip_list:
         garbage_list.sort(reverse=True)
         for i in garbage_list:
             md5_list.pop(i)
-
     #remove excess
     if len(zip_list) > max_n_zip:
         excess = len(zip_list) - max_n_zip
-        if excess == 1:
-            garbage = zip_list.pop(0)
-            f_date, f_size, f_name = garbage.split("_", 2)
-            logi('let us remove excess file {0}'.format(f_name))
-            delete_list.append(f_name)
-            delete_list.append(f_name + '.md5sum')
-        else:
-            for pop_it in range (0, excess):
-                garbage = zip_list.pop(0)
-                f_date, f_size, f_name = garbage.split("_", 2)
-                logi('let us remove excess file {0}'.format(f_name))
-                delete_list.append(f_name)
-                delete_list.append(f_name + '.md5sum')
+        garbage = zip_list.pop(0)
+        f_date, f_size, f_name = garbage.split("_", 2)
+        logi('let us remove excess file {0}'.format(f_name))
+        delete_list.append(f_name)
+        delete_list.append(f_name + '.md5sum')
 
-#ftp delete
+#delete remote files
 if delete_list:
     for garbage in delete_list:
         logi('Removing obsolete file: {0}'.format(garbage))
-        response = ftp.delete(garbage)
+        argv = [r'curl -K {0} -X "dele {1}"'.format(list_conf_file, garbage)]
+        response = subprocess.call(argv, shell=True, stdout=subprocess.PIPE)
 
-#cleaning done
-ftp.quit()
+#cleanup
+argv = [r'rm {0}'.format(list_conf_file)]
+subprocess.call(argv, shell=True)
+##-- deadwood cleaning done --##
 
 if not os.path.exists(newpath):
     print("No such file %s" % (newpath))
@@ -285,8 +290,6 @@ if not foreground:
     daemonize()
 
 logi("upload %s %s" % (remotedir, newpath))
-
-newfile = os.path.basename(newpath)
 
 m = re.search('\d{8}', newfile)
 if m is None:
@@ -310,19 +313,13 @@ if not os.path.exists(oldpath):
     sys.exit(0)
 
 # check for oldfile on the server
-roldfile = newfile.replace(newdatestr, olddatestr)
-ftp = ftplib.FTP(ftp_host, ftp_user, ftp_pass)
-ftp.cwd(remotedir)
-try:
-    ftp.voidcmd('TYPE I')
-    response = ftp.size(roldfile)
-    ftp.quit()
-except:
-    logi("yesterdays build not found on server, fall back to normal upload")
-    put_file(remotedir, newpath)
-    put_file(remotedir, newmd5)
-    ftp.quit()
-    sys.exit(0)
+if zip_list:
+    roldfile = newfile.replace(newdatestr, olddatestr)
+    if roldfile not in zip_list:
+        logi("yesterdays build not found on server, fall back to normal upload")
+        put_file(remotedir, newpath)
+        put_file(remotedir, newmd5)
+        sys.exit(0)
 
 logi("attempt to put file via delta")
 if not put_file_delta(remotedir, newpath, oldpath):
