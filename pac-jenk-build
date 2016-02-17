@@ -139,7 +139,7 @@ else
     cd "$BUILD_TOP"
     repo init -u https://github.com/PAC-ROM/pac-rom -b $Tree
     CheckReturn $?
-    repo sync -j8 --force-sync
+    repo sync -qj8 --force-sync
     CheckReturn $?
 fi
 
@@ -214,7 +214,7 @@ if [ $needs_run -ne 0 ]; then
     CheckReturn $?
     pac-add-devices
     CheckReturn $?
-    repo sync -cj8 --force-sync
+    repo sync -qcj8 --force-sync
     CheckReturn $?
 
     # Work around for if a package changes remotes, the first git reset will fail so sync and try again.
@@ -223,7 +223,7 @@ if [ $needs_run -ne 0 ]; then
     if [ $worked -ne 0 ]; then
         repo forall -c "git reset --hard HEAD; git clean -q -f"
         CheckReturn $?
-        repo sync -cj8 --force-sync
+        repo sync -qcj8 --force-sync
         CheckReturn $?
     fi
 
