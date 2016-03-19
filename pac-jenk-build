@@ -278,7 +278,8 @@ fi
 
 # Copy output zip to well known place
 cp "$PROD_OUT_DIR/$built_zip" "$outzip"
-md5sum $outzip > $OUT_MD5SUM
+md5sum $PROD_OUT_DIR/$built_zip > $PROD_OUT_DIR/$built_zip.md5sum
+cp "$PROD_OUT_DIR/$built_zip.md5sum" "$OUT_MD5SUM"
 
 # Upload output zip
 echo "Upload $outzip to $REMOTE_DIR via $Host"
