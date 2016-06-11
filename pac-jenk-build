@@ -139,7 +139,7 @@ else
     cd "$BUILD_TOP"
     repo init -u https://github.com/PAC-ROM/pac-rom -b $Tree
     CheckReturn $?
-    repo sync -qj8 --force-sync
+    repo sync $Sync_Options
     CheckReturn $?
 fi
 
